@@ -40,11 +40,11 @@ public abstract class NettyRemotingAbstract {
         if(command == null) return;
         switch (command.getCommandType()){
             case REQUEST:
-                log.info("【Request】command: {}", command);
+                // log.info("【Request】command: {}", command);
                 processRequestCommand(context, command);
                 break;
             case RESPONSE:
-                log.info("【Response】command: {}", command);
+                // log.info("【Response】command: {}", command);
                 processResponseCommand(context, command);
                 break;
             default:

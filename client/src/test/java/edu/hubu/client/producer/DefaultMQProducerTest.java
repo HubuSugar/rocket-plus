@@ -28,14 +28,21 @@ public class DefaultMQProducerTest {
         DefaultMQProducer mqProducer = new DefaultMQProducer("test group");
         mqProducer.setNameServer("127.0.0.1:9877");
         mqProducer.start();
-
-        for(int i = 0; i < 1; i++){
+        int successCount = 0, failCount = 0;
+        for(int i = 0; i < 50; i++){
             Message message = new Message("test");
             String body = "the first message, this is my first day to learn rocket mq " + i;
             message.setBody(body.getBytes(StandardCharsets.UTF_8));
             SendResult sendResult = mqProducer.send(message);
-            log.info("sendResult: {}", sendResult);
+            if(sendResult.getSendStatus() == SendStatus.SEND_OK){
+                successCount++;
+            }else{
+                log.info("出现失败：i:{}, result:{}",i, sendResult);
+                failCount++;
+            }
+            // log.info("sendResult: {}", sendResult);
         }
+        System.out.println("successCount:" + successCount + " failCount:" + failCount);
 
     }
 }

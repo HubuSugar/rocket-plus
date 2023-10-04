@@ -197,6 +197,8 @@ public class MappedFile extends ReferenceResource{
                 this.release();
             }else{
                 log.warn("in flush hold failed, flush offset = {}", this.flushedPosition.get());
+                //fix
+                this.flushedPosition.set(getReadPosition());
             }
         }
         return this.getFlushedPosition();
@@ -205,8 +207,8 @@ public class MappedFile extends ReferenceResource{
     public boolean isAbleToFlush(int flushLeastPages){
         int flush = this.flushedPosition.get();
         int write = this.getReadPosition();
-        if(isFull()){
-            return false;
+        if(isFull()){  //当前mappedFile满了之后直接刷盘成功
+            return true;
         }
 
         if(flushLeastPages > 0){

@@ -216,7 +216,8 @@ public class CommitLog {
         if (FlushDiskType.SYNC_FLUSH == messageStore.getMessageStoreConfig().getFlushDiskType()) {
             GroupCommitService groupCommitService = (GroupCommitService) this.flushCommitlogService;
             if (messageInner.isWaitStoreOk()) {
-                GroupSubmitRequest submitRequest = new GroupSubmitRequest(result.getWroteOffset() + result.getWriteBytes(), messageStore.getMessageStoreConfig().getSyncFlushTimeout());
+                GroupSubmitRequest submitRequest = new GroupSubmitRequest(result.getWroteOffset() + result.getWriteBytes(),
+                        messageStore.getMessageStoreConfig().getSyncFlushTimeout());
                 groupCommitService.putRequest(submitRequest);
 
                 return submitRequest.future();
@@ -266,6 +267,7 @@ public class CommitLog {
     }
 
     /**
+     * doReput时调用
      * 先找到对应的mappedFile,然后根据mappedFile找到对应的MappedBuffer
      * @param offset 重放消息的起始偏移量
      * @param returnFirstOnNotFound
@@ -428,7 +430,7 @@ public class CommitLog {
     }
 
 
-    static class GroupSubmitRequest {
+    public static class GroupSubmitRequest {
         private long nextOffset;
         private long syncFlushTimeout;
         private final CompletableFuture<PutMessageStatus> flushOkFuture = new CompletableFuture<>();

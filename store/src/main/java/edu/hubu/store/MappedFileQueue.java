@@ -194,8 +194,15 @@ public class MappedFileQueue {
             MappedFile lastMappedFile = this.getLastMappedFile();
             if(firstMappedFile != null && lastMappedFile != null){
                 if(offset < firstMappedFile.getFileFromOffset() || offset >= lastMappedFile.getFileFromOffset() + this.mappedFileSize){
-                    log.error("offset not matched request offset:{}, firstOffset: {}, lastOffset:{}, mappedFileSize:{}, mapped files count:{}",
-                            offset, firstMappedFile.getFileFromOffset(), lastMappedFile.getFileFromOffset() + this.mappedFileSize, this.mappedFileSize, mappedFiles.size());
+                    log.error("offset not matched request offset:{}, " +
+                                    "firstOffset: {}, " +
+                                    "lastOffset:{}, " +
+                                    "mappedFileSize:{}, " +
+                                    "mapped files count:{}",
+                            offset,
+                            firstMappedFile.getFileFromOffset(),
+                            lastMappedFile.getFileFromOffset() + this.mappedFileSize,
+                            this.mappedFileSize, mappedFiles.size());
                 }else{
                     //mapped file的位置
                     int index = (int) ((offset / this.mappedFileSize) - (firstMappedFile.getFileFromOffset() / this.mappedFileSize));
