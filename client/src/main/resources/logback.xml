@@ -10,7 +10,7 @@
     </appender>
 
     <!-- 日志输出级别 -->
-    <root level="warn">
+    <root level="error">
         <appender-ref ref="STDOUT" />
     </root>
 

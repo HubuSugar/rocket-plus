@@ -2,6 +2,7 @@ package edu.hubu.client.instance;
 
 import edu.hubu.client.exception.MQClientException;
 import edu.hubu.client.impl.TopicPublishInfo;
+import edu.hubu.client.impl.consumer.MQConsumerInner;
 import edu.hubu.client.impl.producer.DefaultMQProducerImpl;
 import edu.hubu.client.producer.DefaultMQProducer;
 import edu.hubu.client.producer.MQProducerInner;
@@ -36,6 +37,8 @@ public class MQClientInstance {
     //<group, producer>
     private final ConcurrentMap<String, MQProducerInner> producerTable = new ConcurrentHashMap<>();
 
+    private final ConcurrentMap<String, MQConsumerInner> consumerTable = new ConcurrentHashMap<>();
+
     //<topic, TopicRouteData>
     private final ConcurrentMap<String, TopicRouteData> topicRouteTable = new ConcurrentHashMap<>();
     //<brokerName, brokerId, brokerAddress>
@@ -62,11 +65,15 @@ public class MQClientInstance {
         }
     }
 
+    /**
+     * 主要是启动netty客户端
+     */
     public void start(){
         synchronized (this){
             if(this.clientConfig.getNameServer() == null){
                 this.mqClientAPI.fetchNameSrvAddress();
             }
+            //启动netty客户端
             this.mqClientAPI.start();
             //start variables schedule tasks
             this.startScheduleTasks();
@@ -284,8 +291,8 @@ public class MQClientInstance {
 
     /**
      * producer注册
-     * @param group
-     * @param producer
+     * @param group 生产者组
+     * @param producer 生产者具体实现对象
      * @return
      */
     public boolean registerProducer(final String group, final DefaultMQProducerImpl producer){
@@ -299,6 +306,19 @@ public class MQClientInstance {
         }
         return true;
     }
+
+    public boolean registerConsumer(final String group, final MQConsumerInner consumer){
+        if(group == null || consumer == null){
+            return false;
+        }
+        MQConsumerInner prev = this.consumerTable.putIfAbsent(group, consumer);
+        if(prev != null){
+            log.warn(" the consumer group {} already exists", group);
+            return false;
+        }
+        return true;
+    }
+
 
     public MQClientAPIImpl getMqClientAPI() {
         return mqClientAPI;

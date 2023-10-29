@@ -5,6 +5,7 @@ import edu.hubu.common.ServiceThread;
 import edu.hubu.common.SystemClock;
 import edu.hubu.common.message.MessageExtBrokerInner;
 import edu.hubu.common.sysFlag.MessageSysFlag;
+import edu.hubu.common.topic.TopicValidator;
 import edu.hubu.common.utils.MixAll;
 import edu.hubu.store.config.BrokerRole;
 import edu.hubu.store.config.MessageStoreConfig;
@@ -23,7 +24,9 @@ import java.io.RandomAccessFile;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileLock;
 import java.nio.charset.StandardCharsets;
+import java.util.Iterator;
 import java.util.LinkedList;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -232,6 +235,38 @@ public class DefaultMessageStore implements MessageStore{
         return null;
     }
 
+    @Override
+    public void cleanExpiredConsumeQueue() {
+        long minOffset = this.commitLog.getMinOffset();
+        //<topic, <queueId, ConsumeQueue>>
+        Iterator<Map.Entry<String, ConcurrentHashMap<Integer, ConsumeQueue>>> iterator = this.consumeQueueTable.entrySet().iterator();
+        while(iterator.hasNext()){
+            Map.Entry<String, ConcurrentHashMap<Integer, ConsumeQueue>> next = iterator.next();
+            String topic = next.getKey();
+            if(!topic.equals(TopicValidator.RMQ_SYS_SCHEDULE_TOPIC)){
+                ConcurrentHashMap<Integer, ConsumeQueue> queueTable = next.getValue();
+                Iterator<Map.Entry<Integer, ConsumeQueue>> qtIt = queueTable.entrySet().iterator();
+                while (qtIt.hasNext()) {
+                    Map.Entry<Integer, ConsumeQueue> nextQt = qtIt.next();
+                    //获取consumeQueue的最后offset
+                    // long cqLastOffset = nextQt.getValue().getLastOffset();
+                    // if(cqLastOffset == -1){
+                    //     log.warn("");
+                    // }else if(cqLastOffset < minOffset){
+                    //
+                    //     qtIt.remove();
+                    // }
+
+                }
+
+                if(queueTable.isEmpty()){
+                    log.info("cleanExpiredConsumeQueue: {},topic destroyed", topic);
+                    iterator.remove();
+                }
+            }
+        }
+    }
+
     public void doDispatch(DispatchRequest request){
         for (CommitLogDispatcher dispatcher : this.dispatcherList) {
             dispatcher.dispatch(request);
@@ -301,6 +336,12 @@ public class DefaultMessageStore implements MessageStore{
         return null;
     }
 
+    /**
+     * 启动时加载consumeQueue
+     * @param topic
+     * @param queueId
+     * @param consumeQueue
+     */
     public void putConsumeQueue(String topic, int queueId, ConsumeQueue consumeQueue){
         ConcurrentHashMap<Integer, ConsumeQueue> queueMap = this.consumeQueueTable.get(topic);
         if(queueMap == null){
@@ -380,6 +421,9 @@ public class DefaultMessageStore implements MessageStore{
         }
     }
 
+    /**
+     * 构建index
+     */
     class CommitLogIndexDispatcher implements CommitLogDispatcher{
         @Override
         public void dispatch(DispatchRequest request) {
@@ -390,12 +434,26 @@ public class DefaultMessageStore implements MessageStore{
     }
 
     /**
+     * 清除过期的 CommitLog
+     */
+    class CleanCommitLogService {
+
+    }
+
+    /**
+     * 清除过期的ConsumeQueue
+     */
+    class CleanConsumeQueueService{
+
+    }
+
+    /**
      * 进行consumeQueue刷盘
      */
     class FlushConsumeQueueService extends ServiceThread{
         private static final int RETRY_TIMES_OVER = 3;
 
-        private long lastFlushTimestamp;
+        private long lastFlushTimestamp = 0;
 
         @Override
         public String getServiceName() {

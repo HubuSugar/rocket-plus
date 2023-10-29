@@ -16,7 +16,7 @@ public class MessageStoreConfig {
     //commitlog存储路径
     private String commitlogStorePath = System.getProperty("user.home") + File.separator + "store_plus" + File.separator + "commitlog";
     //每个commitlog文件的分片大小，默认为1G，commitlog中mappedFile文件的大小
-    private int mappedFileSizeCommitlog = 1024 * 4;
+    private int mappedFileSizeCommitlog = 1024 * 1024 * 4;
     //默认 300000 * 20
     private int mappedFileSizeConsumeQueue = 30 * ConsumeQueue.CONSUME_QUEUE_UNIT_SIZE;
     //是否开启dledger

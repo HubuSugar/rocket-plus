@@ -21,4 +21,6 @@ public interface MessageStore {
     }
 
     PutMessageResult putMessage(final MessageExtBrokerInner message);
+
+    void cleanExpiredConsumeQueue();
 }

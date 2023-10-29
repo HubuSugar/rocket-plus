@@ -15,9 +15,11 @@ public class ClientConfig {
     private String nameServer = NameServerAddressUtil.getNameServerAddress();
     private final String clientIp = RemotingUtil.getLocalAddress();
     private String instanceName = System.getProperty("rocketmq.client.name", "DEFAULT");
+
+    private boolean unitMode = false;
     private String unitName;
     private long pollNameSrvInterval = 1000 * 30;
-    private String namespace;
+    protected String namespace;
 
 
     public String buildMQClientId(){
@@ -49,6 +51,14 @@ public class ClientConfig {
 
     public void setInstanceName(String instanceName) {
         this.instanceName = instanceName;
+    }
+
+    public boolean isUnitMode() {
+        return unitMode;
+    }
+
+    public void setUnitMode(boolean unitMode) {
+        this.unitMode = unitMode;
     }
 
     public String getUnitName() {
