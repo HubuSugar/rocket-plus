@@ -1,6 +1,8 @@
 package edu.hubu.common.protocol.route;
 
-import java.util.HashMap;
+import edu.hubu.common.utils.MixAll;
+
+import java.util.*;
 
 /**
  * @author: sugar
@@ -12,6 +14,17 @@ public class BrokerData implements Comparable<BrokerData>{
     private String brokerName;
     //<brokerId, brokerAddress>
     private HashMap<Long, String> brokerAddrTable = new HashMap<>();
+    private final Random random = new Random();
+
+
+    public String selectBrokerAddr() {
+        String brokerAddr = brokerAddrTable.get(MixAll.MASTER_ID);
+        if(brokerAddr == null){
+            List<String> brokerAddrs = new ArrayList<>(brokerAddrTable.values());
+            return brokerAddrs.get(random.nextInt(brokerAddrs.size()));
+        }
+        return brokerAddr;
+    }
 
     public String getCluster() {
         return cluster;
@@ -44,4 +57,5 @@ public class BrokerData implements Comparable<BrokerData>{
     public int compareTo(BrokerData o) {
         return 0;
     }
+
 }

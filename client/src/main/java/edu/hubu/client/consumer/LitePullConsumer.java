@@ -13,7 +13,7 @@ public interface LitePullConsumer {
 
     void shutdown();
 
-    void subscribe(String topic, String subExpression);
+    void subscribe(String topic, String subExpression) throws MQClientException;
 
     void subscribe(String topic, MessageSelector messageSelector);
 

@@ -27,7 +27,13 @@ public class DefaultLitePullConsumer extends ClientConfig implements LitePullCon
 
     private AllocateMessageQueueStrategy allocateMessageQueueStrategy = new AllocateMessageQueueAveragely();
 
+    /**
+     * 是否以订阅组为单位
+     */
     private boolean unitMode = false;
+
+    private int pullThreadNums = 20;
+
 
 
     public DefaultLitePullConsumer(final String consumerGroup) {
@@ -53,7 +59,7 @@ public class DefaultLitePullConsumer extends ClientConfig implements LitePullCon
 
 
     @Override
-    public void subscribe(String topic, String subExpression) {
+    public void subscribe(String topic, String subExpression) throws MQClientException {
         this.defaultLitePullConsumerImpl.subscribe(NamespaceUtil.wrapNamespace(this.namespace, topic), subExpression);
     }
 
@@ -106,5 +112,13 @@ public class DefaultLitePullConsumer extends ClientConfig implements LitePullCon
 
     public void setAllocateMessageQueueStrategy(AllocateMessageQueueStrategy allocateMessageQueueStrategy) {
         this.allocateMessageQueueStrategy = allocateMessageQueueStrategy;
+    }
+
+    public int getPullThreadNums() {
+        return pullThreadNums;
+    }
+
+    public void setPullThreadNums(int pullThreadNums) {
+        this.pullThreadNums = pullThreadNums;
     }
 }

@@ -10,4 +10,6 @@ public class MixAll {
     public static final String NAME_SERVER_ADDRESS_ENV = "NAMESERVER_ADDR";
     public static final Long MASTER_ID = 0L;
     public static final String DEFAULT_TRACE_REGION = "DefaultRegion";
+
+    public static final String RETRY_GROUP_TOPIC_PREFIX = "%RETRY_TOPIC%";
 }

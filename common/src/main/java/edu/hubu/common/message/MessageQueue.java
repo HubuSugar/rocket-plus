@@ -1,11 +1,14 @@
 package edu.hubu.common.message;
 
+import lombok.EqualsAndHashCode;
+
 /**
  * @author: sugar
  * @date: 2023/5/29
  * @description:
  */
-public class MessageQueue {
+@EqualsAndHashCode
+public class MessageQueue implements Comparable<MessageQueue>{
     private String topic;
     private String brokerName;
     private int queueId;
@@ -38,6 +41,20 @@ public class MessageQueue {
 
     public void setQueueId(int queueId) {
         this.queueId = queueId;
+    }
+
+    @Override
+    public int compareTo(MessageQueue o) {
+        int result = this.topic.compareTo(o.topic);
+        if(result != 0){
+            return result;
+        }
+
+        result = this.brokerName.compareTo(o.brokerName);
+        if(result != 0){
+            return result;
+        }
+        return this.queueId - o.queueId;
     }
 
     @Override

@@ -208,6 +208,11 @@ public class MQClientAPIImpl {
         throw new MQClientException(response.getCode(), response.getRemark());
     }
 
+    public List<String> findConsumerIdListByGroup(String brokerAddr, String consumerGroup, long timeoutMillis) {
+
+        return null;
+    }
+
 
     public String fetchNameSrvAddress(){
         return nameServer;
@@ -220,4 +225,6 @@ public class MQClientAPIImpl {
     public void setNameServer(String nameServer) {
         this.nameServer = nameServer;
     }
+
+
 }

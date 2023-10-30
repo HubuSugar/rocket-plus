@@ -12,9 +12,16 @@ import edu.hubu.client.impl.rebalance.RebalanceLitePullImpl;
 import edu.hubu.client.instance.MQClientInstance;
 import edu.hubu.client.instance.MQClientManager;
 import edu.hubu.common.ServiceState;
+import edu.hubu.common.filter.FilterAPI;
+import edu.hubu.common.message.MessageQueue;
+import edu.hubu.common.protocol.heartbeat.SubscriptionData;
 import edu.hubu.remoting.netty.handler.RpcHook;
 
 import java.util.ArrayList;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ScheduledThreadPoolExecutor;
+import java.util.concurrent.ThreadFactory;
 
 /**
  * @author: sugar
@@ -22,6 +29,8 @@ import java.util.ArrayList;
  * @description:
  */
 public class DefaultLitePullConsumerImpl implements MQConsumerInner{
+
+    private static final String SUBSCRIPTION_CONFLICT_EXCEPTION_MSG = "subscribe and assign are exclusive";
 
     private final DefaultLitePullConsumer defaultLitePullConsumer;
     private final RpcHook rpcHook;
@@ -33,8 +42,11 @@ public class DefaultLitePullConsumerImpl implements MQConsumerInner{
     private PullAPIWrapper pullAPIWrapper;
     private OffsetStore offsetStore;
 
-    private final RebalanceImpl rebalanceImpl = new RebalanceLitePullImpl(this);
+    private RebalanceImpl rebalanceImpl = new RebalanceLitePullImpl(this);
 
+    private SubscriptionType subscribeType = SubscriptionType.NONE;
+
+    private ScheduledThreadPoolExecutor scheduledThreadPoolExecutor;
 
 
 
@@ -43,6 +55,29 @@ public class DefaultLitePullConsumerImpl implements MQConsumerInner{
         this.rpcHook = rpcHook;
 
         //创建线程池
+        this.scheduledThreadPoolExecutor = new ScheduledThreadPoolExecutor(defaultLitePullConsumer.getPullThreadNums(), new ThreadFactory() {
+            @Override
+            public Thread newThread(Runnable r) {
+                return new Thread(r,"pullMsgThread-" + defaultLitePullConsumer.getConsumerGroup());
+            }
+        });
+    }
+
+    @Override
+    public void doRebalance() {
+        if(rebalanceImpl != null){
+            this.rebalanceImpl.doRebalance(false);
+        }
+    }
+
+    @Override
+    public void updateTopicSubscribeInfo(String topic, Set<MessageQueue> topicSubscribeInfo) {
+        ConcurrentHashMap<String, SubscriptionData> subTable = this.rebalanceImpl.getSubscriptionInner();
+        if(subTable != null){
+            if(subTable.containsKey(topic)){
+                this.rebalanceImpl.getTopicSubscribeTable().put(topic, topicSubscribeInfo);
+            }
+        }
     }
 
     public synchronized void start() throws MQClientException {
@@ -66,6 +101,8 @@ public class DefaultLitePullConsumerImpl implements MQConsumerInner{
                 this.mqClientInstance.start();
 
                 serviceState = ServiceState.RUNNING;
+
+                operateAfterRunning();
                 break;
             case START_FAILED:
             case RUNNING:
@@ -116,17 +153,33 @@ public class DefaultLitePullConsumerImpl implements MQConsumerInner{
         this.offsetStore.load();
     }
 
+    private void operateAfterRunning(){
+
+    }
 
     public void subscribe(String topic, String subExpression) {
 
     }
 
-    public void subscribe(String topic, MessageSelector messageSelector){
+    public synchronized void subscribe(String topic, MessageSelector messageSelector){
 
     }
 
     @Override
     public boolean isUnitMode() {
         return this.defaultLitePullConsumer.isUnitMode();
+    }
+
+    private enum SubscriptionType{
+        NONE, ASSIGN, SUBSCRIBE
+    }
+
+
+    public synchronized void setSubscribeType(SubscriptionType type){
+        if(SubscriptionType.NONE == type){
+            this.subscribeType = type;
+        }else if(type != this.subscribeType){
+            throw new IllegalStateException(SUBSCRIPTION_CONFLICT_EXCEPTION_MSG);
+        }
     }
 }

@@ -42,7 +42,7 @@ public abstract class ServiceThread implements Runnable{
         }
     }
 
-    public void waitForRunning(int interval){
+    public void waitForRunning(long interval){
         if(hasNotified.compareAndSet(true, false)){
             this.onWaitEnd();
             return;

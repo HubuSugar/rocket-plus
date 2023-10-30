@@ -3,7 +3,9 @@ package edu.hubu.client.instance;
 import edu.hubu.client.exception.MQClientException;
 import edu.hubu.client.impl.TopicPublishInfo;
 import edu.hubu.client.impl.consumer.MQConsumerInner;
+import edu.hubu.client.impl.consumer.PullMessageService;
 import edu.hubu.client.impl.producer.DefaultMQProducerImpl;
+import edu.hubu.client.impl.rebalance.RebalanceService;
 import edu.hubu.client.producer.DefaultMQProducer;
 import edu.hubu.client.producer.MQProducerInner;
 import edu.hubu.common.PermName;
@@ -53,6 +55,10 @@ public class MQClientInstance {
         }
     });
 
+    private final PullMessageService pullMessageService;
+
+    private final RebalanceService rebalanceService;
+
     public MQClientInstance(ClientConfig clientConfig, int instanceIndex, String clientId) {
         this.clientConfig = clientConfig;
         this.clientId = clientId;
@@ -63,6 +69,10 @@ public class MQClientInstance {
         if(clientConfig.getNameServer() != null){
             this.mqClientAPI.updateNameSrvAddressList(clientConfig.getNameServer());
         }
+
+        this.pullMessageService = new PullMessageService(this);
+
+        this.rebalanceService = new RebalanceService(this);
     }
 
     /**
@@ -77,11 +87,21 @@ public class MQClientInstance {
             this.mqClientAPI.start();
             //start variables schedule tasks
             this.startScheduleTasks();
+            //启动消息拉取线程
+            this.pullMessageService.start();
+            //启动rebalance线程
+            this.rebalanceService.start();
+
+
         }
     }
 
     private void startScheduleTasks(){
         //1、定时获取nameSrvAddress
+        if(null == this.clientConfig.getNameServer()){
+            this.scheduledExecutorService.scheduleAtFixedRate(this.mqClientAPI::fetchNameSrvAddress,
+                    1000 * 10, 1000 * 60 * 2, TimeUnit.MILLISECONDS);
+        }
 
         //2、定时获取topicRouteInfo
         this.scheduledExecutorService.scheduleAtFixedRate(() -> {
@@ -181,7 +201,18 @@ public class MQClientInstance {
                                 }
                             }
 
-                            //update sub info todo
+                            //update sub info
+                            {
+                                Set<MessageQueue> topicSubscribeInfo = topicRouteData2TopicSubscribeInfo(topic, topicRouteData);
+                                for (Map.Entry<String, MQConsumerInner> stringMQConsumerInnerEntry : this.consumerTable.entrySet()) {
+                                    MQConsumerInner consumerInner = stringMQConsumerInnerEntry.getValue();
+                                    if (consumerInner != null) {
+                                        consumerInner.updateTopicSubscribeInfo(topic, topicSubscribeInfo);
+                                    }
+                                }
+
+                            }
+
                             log.info("update topic route table, topic: {}, topicRouteData:{}", topic, topicRouteData);
                             this.topicRouteTable.put(topic, cloneData);
                             return true;
@@ -192,7 +223,7 @@ public class MQClientInstance {
                     }
                     //当首次发送topic不存在时，会先将异常捕获，然后通过默认的topic查找TopicRouteData
                 }catch (MQClientException e){
-                    if(!topic.startsWith("RETRY")){
+                    if(!topic.startsWith(MixAll.RETRY_GROUP_TOPIC_PREFIX)){
                         log.warn("updateTopicRouteInfoFromNameServer mqClientException", e);
                     }
                 }catch (RemotingException e){
@@ -252,8 +283,23 @@ public class MQClientInstance {
             topicPublishInfo.setOrderTopic(false);
         }
 
-
         return topicPublishInfo;
+    }
+
+    public static Set<MessageQueue> topicRouteData2TopicSubscribeInfo(String topic, TopicRouteData routeData){
+        Set<MessageQueue> mqList = new HashSet<>();
+        List<QueueData> queueDatas = routeData.getQueueData();
+        for (QueueData queueData : queueDatas) {
+
+            if(PermName.isReadable(queueData.getPerm())){
+                for (int i = 0; i < queueData.getReadQueueNums(); i++) {
+                    MessageQueue messageQueue = new MessageQueue(topic, queueData.getBrokerName(), i);
+                    mqList.add(messageQueue);
+                }
+            }
+
+        }
+        return mqList;
     }
 
     private boolean isNeedUpdateTopicRouteInfo(String topic){
@@ -289,6 +335,19 @@ public class MQClientInstance {
         return !old.equals(topicRouteData);
     }
 
+    public void doRebalance() {
+        for (Map.Entry<String, MQConsumerInner> entry : this.consumerTable.entrySet()) {
+            MQConsumerInner consumerInner = entry.getValue();
+            if(consumerInner != null){
+                try{
+                    consumerInner.doRebalance();
+                }catch (Exception e){
+                    log.error("doRebalance exception", e);
+                }
+            }
+        }
+    }
+
     /**
      * producer注册
      * @param group 生产者组
@@ -320,6 +379,37 @@ public class MQClientInstance {
     }
 
 
+    public List<String> findConsumerIdList(String topic, String consumerGroup) {
+        String brokerAddr = findBrokerAddrByTopic(topic);
+        if(brokerAddr == null){
+            this.updateTopicInfoFromNameServer(topic);
+            brokerAddr = findBrokerAddrByTopic(topic);
+        }
+
+        if(brokerAddr != null){
+            try{
+                return this.mqClientAPI.findConsumerIdListByGroup(brokerAddr, consumerGroup, 3000);
+            }catch (Exception e){
+                log.warn("find consumer id list failed", e);
+            }
+        }
+        return null;
+    }
+
+    public String findBrokerAddrByTopic(final String topic){
+        TopicRouteData topicRouteData = this.topicRouteTable.get(topic);
+        if(topicRouteData != null){
+            List<BrokerData> brokers = topicRouteData.getBrokerData();
+            if(!brokers.isEmpty()){
+                int index = new Random().nextInt(brokers.size());
+                BrokerData brokerData = brokers.get(index % brokers.size());
+                return brokerData.selectBrokerAddr();
+            }
+        }
+        return null;
+    }
+
+
     public MQClientAPIImpl getMqClientAPI() {
         return mqClientAPI;
     }
@@ -327,4 +417,6 @@ public class MQClientInstance {
     public String getClientId() {
         return clientId;
     }
+
+
 }
