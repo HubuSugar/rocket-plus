@@ -1,6 +1,7 @@
 package edu.hubu.client.consumer.store;
 
 import edu.hubu.client.instance.MQClientInstance;
+import edu.hubu.common.message.MessageQueue;
 
 /**
  * @author: sugar
@@ -19,6 +20,16 @@ public class LocalFileOffsetStore implements OffsetStore{
 
     @Override
     public void load() {
+
+    }
+
+    @Override
+    public long readOffset(MessageQueue mq, ReadOffsetType readOffsetType) {
+        return 0;
+    }
+
+    @Override
+    public void removeOffset(MessageQueue mq) {
 
     }
 

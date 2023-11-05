@@ -1,6 +1,7 @@
 package edu.hubu.client.impl.consumer;
 
 import edu.hubu.client.consumer.DefaultLitePullConsumer;
+import edu.hubu.client.consumer.MessageQueueListener;
 import edu.hubu.client.consumer.MessageSelector;
 import edu.hubu.client.consumer.store.LocalFileOffsetStore;
 import edu.hubu.client.consumer.store.OffsetStore;
@@ -14,10 +15,12 @@ import edu.hubu.client.instance.MQClientManager;
 import edu.hubu.common.ServiceState;
 import edu.hubu.common.filter.FilterAPI;
 import edu.hubu.common.message.MessageQueue;
+import edu.hubu.common.protocol.heartbeat.MessageModel;
 import edu.hubu.common.protocol.heartbeat.SubscriptionData;
 import edu.hubu.remoting.netty.handler.RpcHook;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
@@ -40,6 +43,8 @@ public class DefaultLitePullConsumerImpl implements MQConsumerInner{
 
     protected MQClientInstance mqClientInstance;
     private PullAPIWrapper pullAPIWrapper;
+
+    //defaultLitePullConsumer中指定了就是用指定的实现类,如果没有的话就根据MessageModel使用，广播模式使用local、集群模式使用remote
     private OffsetStore offsetStore;
 
     private RebalanceImpl rebalanceImpl = new RebalanceLitePullImpl(this);
@@ -48,6 +53,9 @@ public class DefaultLitePullConsumerImpl implements MQConsumerInner{
 
     private ScheduledThreadPoolExecutor scheduledThreadPoolExecutor;
 
+    // private ConcurrentHashMap<String, PullTaskImpl>
+
+    private AssignedMessageQueue assignedMessageQueue = new AssignedMessageQueue();
 
 
     public DefaultLitePullConsumerImpl(DefaultLitePullConsumer defaultLitePullConsumer, RpcHook rpcHook) {
@@ -157,8 +165,28 @@ public class DefaultLitePullConsumerImpl implements MQConsumerInner{
 
     }
 
-    public void subscribe(String topic, String subExpression) {
 
+    public synchronized void subscribe(String topic, String subExpression) throws MQClientException {
+        try {
+            if (topic == null || "".equals(topic)) {
+                throw new IllegalArgumentException("topic can not be null or empty");
+            }
+            setSubscribeType(SubscriptionType.SUBSCRIBE);
+            SubscriptionData subscriptionData = FilterAPI.buildSubscriptionData(this.defaultLitePullConsumer.getConsumerGroup(), topic, subExpression);
+            this.rebalanceImpl.getSubscriptionInner().put(topic, subscriptionData);
+            this.defaultLitePullConsumer.setMessageQueueListener(new MessageQueueListenerImpl());
+            if(serviceState == ServiceState.RUNNING){
+                this.mqClientInstance.sendHeartbeatToAllBrokerWithLock();
+                updateTopicSubscribeInfoWhenSubscriptionChanged();
+            }
+
+        } catch (Exception e) {
+            throw new MQClientException("subscribe exception", e);
+        }
+
+    }
+
+    private void updateTopicSubscribeInfoWhenSubscriptionChanged() {
     }
 
     public synchronized void subscribe(String topic, MessageSelector messageSelector){
@@ -170,16 +198,60 @@ public class DefaultLitePullConsumerImpl implements MQConsumerInner{
         return this.defaultLitePullConsumer.isUnitMode();
     }
 
+    public DefaultLitePullConsumer getDefaultLitePullConsumer() {
+        return defaultLitePullConsumer;
+    }
+
+    public OffsetStore getOffsetStore() {
+        return offsetStore;
+    }
+
+    public void setOffsetStore(OffsetStore offsetStore) {
+        this.offsetStore = offsetStore;
+    }
+
+
     private enum SubscriptionType{
         NONE, ASSIGN, SUBSCRIBE
     }
 
 
-    public synchronized void setSubscribeType(SubscriptionType type){
+    private synchronized void setSubscribeType(SubscriptionType type){
         if(SubscriptionType.NONE == type){
             this.subscribeType = type;
         }else if(type != this.subscribeType){
             throw new IllegalStateException(SUBSCRIPTION_CONFLICT_EXCEPTION_MSG);
         }
     }
+
+    private void updatedAssignedMessageQueue(String topic, Set<MessageQueue> mqDivided) {
+        this.assignedMessageQueue.updateAssignedMessageQueue(topic, mqDivided);
+    }
+
+    private void updatePullTask(String topic, Collection<MessageQueue> mqSet){
+
+
+        startPullTask(mqSet);
+    }
+
+    private void startPullTask(Collection<MessageQueue> mqSet){
+
+    }
+    
+    class MessageQueueListenerImpl implements MessageQueueListener{
+        @Override
+        public void messageQueueChanged(String topic, Set<MessageQueue> mqAll, Set<MessageQueue> mqDivided) {
+            MessageModel messageModel = defaultLitePullConsumer.getMessageModel();
+            switch (messageModel){
+                case BROADCASTING:
+                    break;
+                case CLUSTERING:
+                    updatedAssignedMessageQueue(topic, mqDivided);
+                    updatePullTask(topic, mqDivided);
+                    break;
+            }
+        }
+    }
+
+
 }

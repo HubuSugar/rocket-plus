@@ -1,6 +1,7 @@
 package edu.hubu.broker.topic;
 
 import edu.hubu.broker.starter.BrokerController;
+import edu.hubu.common.ConfigManager;
 import edu.hubu.common.DataVersion;
 import edu.hubu.common.PermName;
 import edu.hubu.common.TopicConfig;
@@ -19,7 +20,7 @@ import java.util.concurrent.locks.ReentrantLock;
  * @description:
  */
 @Slf4j
-public class TopicConfigManager {
+public class TopicConfigManager extends ConfigManager {
 
     private static final long LOCK_TIMEOUT_MILLIS = 3 * 1000;
     private final ConcurrentHashMap<String, TopicConfig> topicConfigTable = new ConcurrentHashMap<>(1024);

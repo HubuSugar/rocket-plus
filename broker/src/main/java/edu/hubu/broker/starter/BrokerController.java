@@ -1,9 +1,14 @@
 package edu.hubu.broker.starter;
 
+import edu.hubu.broker.client.ConsumerManager;
+import edu.hubu.broker.client.rebalance.RebalanceLockManager;
 import edu.hubu.broker.filtersrv.FilterServerManager;
 import edu.hubu.broker.longpolling.NotifyMessageArrivingListener;
-import edu.hubu.broker.longpolling.PullHoldService;
+import edu.hubu.broker.longpolling.PullRequestHoldService;
 import edu.hubu.broker.out.BrokerOutAPI;
+import edu.hubu.broker.processor.AdminBrokerProcessor;
+import edu.hubu.broker.processor.ConsumerManagerProcessor;
+import edu.hubu.broker.processor.PullMessageProcessor;
 import edu.hubu.broker.processor.SendMessageProcessor;
 import edu.hubu.broker.topic.TopicConfigManager;
 import edu.hubu.common.BrokerConfig;
@@ -40,15 +45,25 @@ public class BrokerController {
     private NettyRemotingServer nettyRemotingServer;
 
     private final BlockingQueue<Runnable> sendMessageThreadQueue;
+    private final BlockingQueue<Runnable> pullMessageThreadQueue;
     private ExecutorService sendMessageThreadExecutor;
+    private ExecutorService pullMessageExecutor;
+    private ExecutorService consumerManagerExecutor;
+    private ExecutorService adminBrokerExecutor;
+
+    private final RebalanceLockManager rebalanceLockManager = new RebalanceLockManager();
     private final BrokerOutAPI brokerOutAPI;
 
     private TopicConfigManager topicConfigManager;
     private final FilterServerManager filterServerManager;
 
     private MessageStore messageStore;
-    private PullHoldService pullHoldService;
-    private MessageArrivingListener messageArrivingListener;
+    private final PullRequestHoldService pullHoldService;
+    private final MessageArrivingListener messageArrivingListener;
+    private final PullMessageProcessor pullMessageProcessor;
+
+    private final ConsumerManager consumerManager;
+
 
     private final ScheduledExecutorService scheduledExecutorService = Executors.newSingleThreadScheduledExecutor(new ThreadFactory() {
         @Override
@@ -67,13 +82,18 @@ public class BrokerController {
         this.messageStoreConfig = messageStoreConfig;
 
         this.sendMessageThreadQueue = new LinkedBlockingQueue<>(brokerConfig.getSendMessageQueueCapacity());
+        this.pullMessageThreadQueue = new LinkedBlockingQueue<>(brokerConfig.getPullThreadQueueCapacity());
+
         this.brokerOutAPI = new BrokerOutAPI(nettyClientConfig);
 
         this.topicConfigManager = new TopicConfigManager(this);
         this.filterServerManager = new FilterServerManager(this);
 
-        this.pullHoldService = new PullHoldService(this);
+        this.pullHoldService = new PullRequestHoldService(this);
         this.messageArrivingListener = new NotifyMessageArrivingListener(this.pullHoldService);
+        this.consumerManager = new ConsumerManager();
+
+        this.pullMessageProcessor = new PullMessageProcessor(this);
     }
 
     public void initialize(){
@@ -95,6 +115,28 @@ public class BrokerController {
             this.nettyRemotingServer = new NettyRemotingServer(this.nettyServerConfig);
             this.sendMessageThreadExecutor = new ThreadPoolExecutor(this.brokerConfig.getSendMessageThreadNums(),
                     this.brokerConfig.getSendMessageThreadNums(), 1000 * 60, TimeUnit.MILLISECONDS, this.sendMessageThreadQueue);
+
+            this.pullMessageExecutor = new ThreadPoolExecutor(
+                    this.brokerConfig.getPullMessageThreadNums(),
+                    this.brokerConfig.getPullMessageThreadNums(),
+                    1000 * 60,
+                    TimeUnit.MILLISECONDS,
+                    this.pullMessageThreadQueue
+            );
+
+            this.consumerManagerExecutor = Executors.newFixedThreadPool(this.brokerConfig.getConsumerManageThreadNums(), new ThreadFactory() {
+                @Override
+                public Thread newThread(Runnable r) {
+                    return new Thread(r, "consumerManagerThreadExecutor");
+                }
+            });
+            this.adminBrokerExecutor = Executors.newFixedThreadPool(this.brokerConfig.getAdminBrokerThreadNums(), new ThreadFactory() {
+                @Override
+                public Thread newThread(Runnable r) {
+                    return new Thread(r, "adminBrokerThreadExecutor");
+                }
+            });
+
 
             //初始化注册processor
             this.registerProcessor();
@@ -142,7 +184,18 @@ public class BrokerController {
     public void registerProcessor() {
         SendMessageProcessor sendMessageProcessor = new SendMessageProcessor(this);
         this.nettyRemotingServer.registerProcessor(RequestCode.SEND_MESSAGE, sendMessageProcessor, this.sendMessageThreadExecutor);
-        this.nettyRemotingServer.registerProcessor(RequestCode.GET_TOPIC_ROUTE, sendMessageProcessor, sendMessageThreadExecutor);
+
+        //拉取消息pullMessageProcessor
+        this.nettyRemotingServer.registerProcessor(RequestCode.PULL_MESSAGE, this.pullMessageProcessor, this.pullMessageExecutor);
+
+        //消费者管理processor
+        ConsumerManagerProcessor consumerProcessor = new ConsumerManagerProcessor(this);
+        this.nettyRemotingServer.registerProcessor(RequestCode.GET_CONSUMER_LIST_BY_GROUP, consumerProcessor, this.consumerManagerExecutor);
+
+        //默认processor
+        AdminBrokerProcessor adminProcessor = new AdminBrokerProcessor(this);
+        this.nettyRemotingServer.registerDefaultProcessor(adminProcessor, this.adminBrokerExecutor);
+
     }
 
 
@@ -229,4 +282,13 @@ public class BrokerController {
     public MessageStore getMessageStore() {
         return messageStore;
     }
+
+    public RebalanceLockManager getRebalanceLockManager() {
+        return rebalanceLockManager;
+    }
+
+    public ConsumerManager getConsumerManager() {
+        return consumerManager;
+    }
+
 }

@@ -7,11 +7,11 @@ import edu.hubu.broker.starter.BrokerController;
  * @date: 2023/7/15
  * @description:
  */
-public class PullHoldService {
+public class PullRequestHoldService {
 
     private final BrokerController brokerController;
 
-    public PullHoldService(BrokerController brokerController) {
+    public PullRequestHoldService(BrokerController brokerController) {
         this.brokerController = brokerController;
     }
 }

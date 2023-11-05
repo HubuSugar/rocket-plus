@@ -11,7 +11,13 @@ import edu.hubu.client.producer.SendStatus;
 import edu.hubu.common.exception.broker.MQBrokerException;
 import edu.hubu.common.message.*;
 import edu.hubu.common.protocol.SendMessageRequestHeader;
+import edu.hubu.common.protocol.body.LockBatchRequestBody;
+import edu.hubu.common.protocol.body.LockBatchResponseBody;
+import edu.hubu.common.protocol.header.request.GetConsumerIdListByGroupRequestHeader;
+import edu.hubu.common.protocol.header.request.GetMaxOffsetRequestHeader;
 import edu.hubu.common.protocol.header.request.GetTopicRouteInfoHeader;
+import edu.hubu.common.protocol.body.GetConsumerIdListByGroupResponseBody;
+import edu.hubu.common.protocol.header.response.GetMaxOffsetResponseHeader;
 import edu.hubu.common.protocol.header.response.SendMessageResponseHeader;
 import edu.hubu.common.protocol.request.RequestCode;
 import edu.hubu.common.protocol.route.TopicRouteData;
@@ -23,6 +29,7 @@ import lombok.extern.slf4j.Slf4j;
 
 import java.util.Arrays;
 import java.util.List;
+import java.util.Set;
 
 /**
  * @author: sugar
@@ -186,7 +193,7 @@ public class MQClientAPIImpl {
     public TopicRouteData getTopicRouteFromNameSrv(String topic, long timeout, boolean allowTopicAbsent) throws RemotingException, MQClientException, InterruptedException {
         GetTopicRouteInfoHeader topicRouteInfoHeader = new GetTopicRouteInfoHeader();
         topicRouteInfoHeader.setTopic(topic);
-        RemotingCommand requestCommand = RemotingCommand.createRequestCommand(RequestCode.GET_TOPIC_ROUTE, topicRouteInfoHeader);
+        RemotingCommand requestCommand = RemotingCommand.createRequestCommand(RequestCode.GET_ROUTE_INFO_BY_TOPIC, topicRouteInfoHeader);
         RemotingCommand response = remotingClient.invokeSync(null, requestCommand, timeout);
         assert response != null;
 
@@ -208,11 +215,78 @@ public class MQClientAPIImpl {
         throw new MQClientException(response.getCode(), response.getRemark());
     }
 
-    public List<String> findConsumerIdListByGroup(String brokerAddr, String consumerGroup, long timeoutMillis) {
+    /**
+     * 通过RPC请求获取消费者集合
+     * @param brokerAddr
+     * @param consumerGroup
+     * @param timeoutMillis
+     * @return
+     */
+    public List<String> getConsumerIdListByGroup(String brokerAddr, String consumerGroup, long timeoutMillis)
+            throws RemotingConnectException, RemotingSendRequestException, RemotingTimeoutException, InterruptedException, MQBrokerException {
+        GetConsumerIdListByGroupRequestHeader requestHeader = new GetConsumerIdListByGroupRequestHeader();
+        requestHeader.setConsumerGroup(consumerGroup);
 
-        return null;
+        RemotingCommand requestCommand = RemotingCommand.createRequestCommand(RequestCode.GET_CONSUMER_LIST_BY_GROUP, requestHeader);
+        RemotingCommand response = this.remotingClient.invokeSync(MixAll.brokerVipChannel(this.clientConfig.isVipChannelEnable(), brokerAddr), requestCommand, timeoutMillis);
+        assert response != null;
+        switch (response.getCode()){
+            case ResponseCode.SUCCESS:
+                if(response.getBody() != null){
+                    GetConsumerIdListByGroupResponseBody groupResponse = GetConsumerIdListByGroupResponseBody.decode(response.getBody(), GetConsumerIdListByGroupResponseBody.class);
+                    return groupResponse.getConsumerIdList();
+                }
+                break;
+            default:
+                break;
+        }
+        throw new MQBrokerException(response.getCode(), response.getRemark());
     }
 
+    /**
+     * 批量锁定mq
+     * @param brokerAddr
+     * @param requestBody 客户端id、consumerGroup
+     * @param timeoutMillis
+     * @return
+     */
+    public Set<MessageQueue> lockBatchMQ(String brokerAddr, LockBatchRequestBody requestBody, long timeoutMillis)
+            throws RemotingConnectException, RemotingSendRequestException, RemotingTimeoutException, InterruptedException, MQBrokerException {
+
+        RemotingCommand request = RemotingCommand.createRequestCommand(RequestCode.LOCK_BATCH_MQ, null);
+        request.setBody(requestBody.encode());
+
+        RemotingCommand response = this.remotingClient.invokeSync(brokerAddr, request, timeoutMillis);
+        switch (response.getCode()){
+            case ResponseCode.SUCCESS:
+                LockBatchResponseBody responseBody = LockBatchResponseBody.decode(response.getBody(), LockBatchResponseBody.class);
+                return responseBody.getLockedMessageQueue();
+            default:
+                break;
+        }
+
+        throw new MQBrokerException(response.getCode(), response.getRemark());
+    }
+
+    public long getMaxOffset(String brokerAddr, String topic, int queueId, long timeoutMillis) throws RemotingConnectException, RemotingSendRequestException,
+            RemotingTimeoutException, InterruptedException, MQBrokerException {
+        GetMaxOffsetRequestHeader requestHeader = new GetMaxOffsetRequestHeader();
+        requestHeader.setTopic(topic);
+        requestHeader.setQueueId(queueId);
+        RemotingCommand request = RemotingCommand.createRequestCommand(RequestCode.GET_MAX_OFFSET, requestHeader);
+
+        RemotingCommand response = this.remotingClient.invokeSync(MixAll.brokerVipChannel(this.clientConfig.isVipChannelEnable(), brokerAddr), request, timeoutMillis);
+        assert response != null;
+        switch (response.getCode()){
+            case ResponseCode.SUCCESS:
+               GetMaxOffsetResponseHeader responseHeader = (GetMaxOffsetResponseHeader) response.decodeCustomCommandHeader(GetMaxOffsetResponseHeader.class);
+               return responseHeader.getOffset();
+            default:
+                break;
+        }
+
+        throw new MQBrokerException(response.getCode(), response.getRemark());
+    }
 
     public String fetchNameSrvAddress(){
         return nameServer;
@@ -225,6 +299,5 @@ public class MQClientAPIImpl {
     public void setNameServer(String nameServer) {
         this.nameServer = nameServer;
     }
-
 
 }

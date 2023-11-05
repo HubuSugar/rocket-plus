@@ -10,10 +10,10 @@ import java.util.Map;
  * @description:
  */
 public class NotifyMessageArrivingListener implements MessageArrivingListener {
-    private PullHoldService pullHoldService;
+    private PullRequestHoldService pullRequestHoldService;
 
-    public NotifyMessageArrivingListener(PullHoldService pullHoldService) {
-        this.pullHoldService = pullHoldService;
+    public NotifyMessageArrivingListener(PullRequestHoldService pullHoldService) {
+        this.pullRequestHoldService = pullHoldService;
     }
 
     @Override

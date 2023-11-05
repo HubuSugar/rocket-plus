@@ -32,6 +32,10 @@ public class BrokerConfig {
 
     private int sendMessageQueueCapacity = 10000;
     private int sendMessageThreadNums = 8;
+
+    private int pullThreadQueueCapacity = 10000;
+    private int pullMessageThreadNums = 8;
+
     private boolean fetchNameSrvByAddressServer = false;
     private int registerNameSrvPeriod = 1000 * 60;
     private boolean forceRegister = true;
@@ -40,6 +44,8 @@ public class BrokerConfig {
     private boolean compressedRegister = false;
 
     private boolean longPollingEnable = true;
+    private int consumerManageThreadNums = 8;
+    private int adminBrokerThreadNums = 8;
 
 
     public static String localHostname(){
@@ -56,6 +62,7 @@ public class BrokerConfig {
         return sendMessageQueueCapacity;
     }
 
+
     public void setSendMessageQueueCapacity(int sendMessageQueueCapacity) {
         this.sendMessageQueueCapacity = sendMessageQueueCapacity;
     }
@@ -66,6 +73,22 @@ public class BrokerConfig {
 
     public void setSendMessageThreadNums(int sendMessageThreadNums) {
         this.sendMessageThreadNums = sendMessageThreadNums;
+    }
+
+    public int getPullThreadQueueCapacity() {
+        return pullThreadQueueCapacity;
+    }
+
+    public void setPullThreadQueueCapacity(int pullThreadQueueCapacity) {
+        this.pullThreadQueueCapacity = pullThreadQueueCapacity;
+    }
+
+    public int getPullMessageThreadNums() {
+        return pullMessageThreadNums;
+    }
+
+    public void setPullMessageThreadNums(int pullMessageThreadNums) {
+        this.pullMessageThreadNums = pullMessageThreadNums;
     }
 
     public String getNameSrvAddress() {
@@ -186,5 +209,21 @@ public class BrokerConfig {
 
     public void setLongPollingEnable(boolean longPollingEnable) {
         this.longPollingEnable = longPollingEnable;
+    }
+
+    public int getConsumerManageThreadNums() {
+        return consumerManageThreadNums;
+    }
+
+    public void setConsumerManageThreadNums(int consumerManageThreadNums) {
+        this.consumerManageThreadNums = consumerManageThreadNums;
+    }
+
+    public int getAdminBrokerThreadNums() {
+        return adminBrokerThreadNums;
+    }
+
+    public void setAdminBrokerThreadNums(int adminBrokerThreadNums) {
+        this.adminBrokerThreadNums = adminBrokerThreadNums;
     }
 }

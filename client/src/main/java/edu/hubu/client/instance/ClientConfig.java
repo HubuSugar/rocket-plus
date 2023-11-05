@@ -10,7 +10,7 @@ import io.netty.util.internal.StringUtil;
  * @description:
  */
 public class ClientConfig {
-
+    public static final String SEND_MESSAGE_WITH_VIP_CHANNEL = "sendMessageWithVipChannel";
     private static final String SPLIT = "@";
     private String nameServer = NameServerAddressUtil.getNameServerAddress();
     private final String clientIp = RemotingUtil.getLocalAddress();
@@ -18,6 +18,8 @@ public class ClientConfig {
 
     private boolean unitMode = false;
     private String unitName;
+    private boolean vipChannelEnable = Boolean.parseBoolean(System.getProperty(SEND_MESSAGE_WITH_VIP_CHANNEL, "false"));
+
     private long pollNameSrvInterval = 1000 * 30;
     protected String namespace;
 
@@ -87,5 +89,13 @@ public class ClientConfig {
 
     public void setNamespace(String namespace) {
         this.namespace = namespace;
+    }
+
+    public boolean isVipChannelEnable() {
+        return vipChannelEnable;
+    }
+
+    public void setVipChannelEnable(boolean vipChannelEnable) {
+        this.vipChannelEnable = vipChannelEnable;
     }
 }

@@ -1,6 +1,8 @@
 package edu.hubu.client.instance;
 
 import edu.hubu.client.exception.MQClientException;
+import edu.hubu.client.impl.FindBrokerResult;
+import edu.hubu.client.impl.MQAdminImpl;
 import edu.hubu.client.impl.TopicPublishInfo;
 import edu.hubu.client.impl.consumer.MQConsumerInner;
 import edu.hubu.client.impl.consumer.PullMessageService;
@@ -34,6 +36,7 @@ public class MQClientInstance {
     private final String clientId;
     private final ClientConfig clientConfig;
     private final MQClientAPIImpl mqClientAPI;
+    private final MQAdminImpl mqAdminImpl;
     private final NettyClientConfig nettyClientConfig;
 
     //<group, producer>
@@ -65,6 +68,8 @@ public class MQClientInstance {
         this.nettyClientConfig = new NettyClientConfig();
         this.mqClientAPI = new MQClientAPIImpl(this.nettyClientConfig, clientConfig);
 
+        this.mqAdminImpl = new MQAdminImpl(this);
+
         //更新nameSrv地址
         if(clientConfig.getNameServer() != null){
             this.mqClientAPI.updateNameSrvAddressList(clientConfig.getNameServer());
@@ -87,7 +92,7 @@ public class MQClientInstance {
             this.mqClientAPI.start();
             //start variables schedule tasks
             this.startScheduleTasks();
-            //启动消息拉取线程
+            //启动消息拉取线程，push方式
             this.pullMessageService.start();
             //启动rebalance线程
             this.rebalanceService.start();
@@ -388,7 +393,7 @@ public class MQClientInstance {
 
         if(brokerAddr != null){
             try{
-                return this.mqClientAPI.findConsumerIdListByGroup(brokerAddr, consumerGroup, 3000);
+                return this.mqClientAPI.getConsumerIdListByGroup(brokerAddr, consumerGroup, 3000);
             }catch (Exception e){
                 log.warn("find consumer id list failed", e);
             }
@@ -409,6 +414,40 @@ public class MQClientInstance {
         return null;
     }
 
+    public void sendHeartbeatToAllBrokerWithLock() {
+
+    }
+
+    public FindBrokerResult findBrokerAddressInSubscribe(String brokerName, long brokerId, boolean onlyThisBroker) {
+        String brokerAddr = null;
+        boolean slave = false;
+        boolean found = false;
+
+        HashMap<Long, String> map = this.brokerAddrTable.get(brokerName);
+        if(map != null && !map.isEmpty()){
+            brokerAddr = map.get(brokerId);
+            slave = brokerId != MixAll.MASTER_ID;
+            found = brokerAddr != null;
+
+            if(!found && !onlyThisBroker){
+                Map.Entry<Long, String> next = map.entrySet().iterator().next();
+                brokerAddr = next.getValue();
+                slave = next.getKey() != MixAll.MASTER_ID;
+                found = true;
+            }
+        }
+
+        if(found){
+            return new FindBrokerResult(brokerAddr, slave, findBrokerVersion(brokerName, brokerAddr));
+        }
+
+        return null;
+    }
+
+    public int findBrokerVersion(String brokerName, String brokerAddr){
+
+        return 0;
+    }
 
     public MQClientAPIImpl getMqClientAPI() {
         return mqClientAPI;
@@ -418,5 +457,7 @@ public class MQClientInstance {
         return clientId;
     }
 
-
+    public MQAdminImpl getMqAdminImpl() {
+        return mqAdminImpl;
+    }
 }

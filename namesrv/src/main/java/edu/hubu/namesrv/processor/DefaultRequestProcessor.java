@@ -39,7 +39,7 @@ public class DefaultRequestProcessor implements NettyRequestProcessor {
         switch (request.getCode()){
             case RequestCode.QUERY_DATA_VERSION:
                 return queryBrokerTopicConfig(ctx, request);
-            case RequestCode.GET_TOPIC_ROUTE:
+            case RequestCode.GET_ROUTE_INFO_BY_TOPIC:
                 return getTopicRouteInfo(ctx, request);
             case RequestCode.REGISTER_BROKER:
                 return registerAllBroker(ctx, request);

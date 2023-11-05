@@ -6,6 +6,7 @@ import edu.hubu.client.consumer.strategy.AllocateMessageQueueStrategy;
 import edu.hubu.client.exception.MQClientException;
 import edu.hubu.client.impl.consumer.DefaultLitePullConsumerImpl;
 import edu.hubu.client.instance.ClientConfig;
+import edu.hubu.common.consumer.ConsumeFromWhere;
 import edu.hubu.common.protocol.heartbeat.MessageModel;
 import edu.hubu.common.topic.NamespaceUtil;
 import edu.hubu.remoting.netty.handler.RpcHook;
@@ -23,8 +24,11 @@ public class DefaultLitePullConsumer extends ClientConfig implements LitePullCon
 
     private MessageModel messageModel = MessageModel.CLUSTERING;
 
+    private MessageQueueListener messageQueueListener;
+
     private OffsetStore offsetStore;
 
+    //默认采用平均分配算法
     private AllocateMessageQueueStrategy allocateMessageQueueStrategy = new AllocateMessageQueueAveragely();
 
     /**
@@ -33,6 +37,9 @@ public class DefaultLitePullConsumer extends ClientConfig implements LitePullCon
     private boolean unitMode = false;
 
     private int pullThreadNums = 20;
+
+
+    private ConsumeFromWhere consumeFromWhere = ConsumeFromWhere.CONSUME_FROM_LAST_OFFSET;
 
 
 
@@ -96,6 +103,22 @@ public class DefaultLitePullConsumer extends ClientConfig implements LitePullCon
 
     public void setMessageModel(MessageModel messageModel) {
         this.messageModel = messageModel;
+    }
+
+    public MessageQueueListener getMessageQueueListener() {
+        return messageQueueListener;
+    }
+
+    public void setMessageQueueListener(MessageQueueListener messageQueueListener) {
+        this.messageQueueListener = messageQueueListener;
+    }
+
+    public ConsumeFromWhere getConsumeFromWhere() {
+        return consumeFromWhere;
+    }
+
+    public void setConsumeFromWhere(ConsumeFromWhere consumeFromWhere) {
+        this.consumeFromWhere = consumeFromWhere;
     }
 
     public OffsetStore getOffsetStore() {

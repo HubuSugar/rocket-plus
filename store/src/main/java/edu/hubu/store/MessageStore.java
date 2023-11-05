@@ -23,4 +23,6 @@ public interface MessageStore {
     PutMessageResult putMessage(final MessageExtBrokerInner message);
 
     void cleanExpiredConsumeQueue();
+
+    long getMaxOffsetInQueue(String topic, Integer queueId);
 }

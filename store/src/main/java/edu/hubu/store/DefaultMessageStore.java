@@ -267,6 +267,11 @@ public class DefaultMessageStore implements MessageStore{
         }
     }
 
+    @Override
+    public long getMaxOffsetInQueue(String topic, Integer queueId) {
+        return 0;
+    }
+
     public void doDispatch(DispatchRequest request){
         for (CommitLogDispatcher dispatcher : this.dispatcherList) {
             dispatcher.dispatch(request);
