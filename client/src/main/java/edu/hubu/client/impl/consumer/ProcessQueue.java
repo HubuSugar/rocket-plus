@@ -1,6 +1,7 @@
 package edu.hubu.client.impl.consumer;
 
 import edu.hubu.common.message.MessageExt;
+import lombok.extern.slf4j.Slf4j;
 
 import java.util.TreeMap;
 import java.util.concurrent.atomic.AtomicLong;
@@ -12,6 +13,7 @@ import java.util.concurrent.locks.ReentrantReadWriteLock;
  * @date: 2023/10/29
  * @description: 消息消费者的本地缓存
  */
+@Slf4j
 public class ProcessQueue {
 
     private static final long PULL_MAX_IDLE_TIME = Long.parseLong(System.getProperty("rocketmq.client.pull.pullMaxIdleTime", "1200000"));
@@ -31,6 +33,22 @@ public class ProcessQueue {
 
     public boolean isPullExpired(){
         return (System.currentTimeMillis() - this.lastPullTimestamp) > PULL_MAX_IDLE_TIME;
+    }
+
+    public long getMaxSpan() {
+        try {
+            this.lockTreeMap.readLock().lockInterruptibly();
+            try{
+                if(!this.msgTreeMap.isEmpty()){
+                  return this.msgTreeMap.lastKey() - this.msgTreeMap.firstKey();
+                }
+            }finally {
+                this.lockTreeMap.readLock().unlock();
+            }
+        } catch (InterruptedException e) {
+            log.error("lock msg tree exception", e);
+        }
+        return 0;
     }
 
     public TreeMap<Long, MessageExt> getMsgTreeMap() {
@@ -76,4 +94,5 @@ public class ProcessQueue {
     public void setLastLockTimestamp(long lastLockedTimestamp) {
         this.lastLockTimestamp = lastLockedTimestamp;
     }
+
 }

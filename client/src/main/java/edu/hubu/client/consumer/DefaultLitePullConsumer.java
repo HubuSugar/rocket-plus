@@ -22,6 +22,10 @@ public class DefaultLitePullConsumer extends ClientConfig implements LitePullCon
 
     private String consumerGroup;
 
+    private long brokerSuspendMaxTimeMillis = 1000 * 20;
+
+    private long consumerTimeoutMillisWhenSuspend = 1000 * 30;
+
     private MessageModel messageModel = MessageModel.CLUSTERING;
 
     private MessageQueueListener messageQueueListener;
@@ -37,10 +41,16 @@ public class DefaultLitePullConsumer extends ClientConfig implements LitePullCon
     private boolean unitMode = false;
 
     private int pullThreadNums = 20;
+    private int pullBatchSize = 10;
+    private int pullThresholdForAll = 10000;
+    private int pullThresholdForQueue = 1000;
+    private int pullThresholdSizeForQueue = 100;
+    private int consumeMaxSpan = 200;
 
 
     private ConsumeFromWhere consumeFromWhere = ConsumeFromWhere.CONSUME_FROM_LAST_OFFSET;
-
+    // the socket timeout
+    private long consumerPullTimeoutMillis = 1000 * 10;
 
 
     public DefaultLitePullConsumer(final String consumerGroup) {
@@ -101,6 +111,22 @@ public class DefaultLitePullConsumer extends ClientConfig implements LitePullCon
         return messageModel;
     }
 
+    public long getBrokerSuspendMaxTimeMillis() {
+        return brokerSuspendMaxTimeMillis;
+    }
+
+    public void setBrokerSuspendMaxTimeMillis(long brokerSuspendMaxTimeMillis) {
+        this.brokerSuspendMaxTimeMillis = brokerSuspendMaxTimeMillis;
+    }
+
+    public long getConsumerTimeoutMillisWhenSuspend() {
+        return consumerTimeoutMillisWhenSuspend;
+    }
+
+    public void setConsumerTimeoutMillisWhenSuspend(long consumerTimeoutMillisWhenSuspend) {
+        this.consumerTimeoutMillisWhenSuspend = consumerTimeoutMillisWhenSuspend;
+    }
+
     public void setMessageModel(MessageModel messageModel) {
         this.messageModel = messageModel;
     }
@@ -143,5 +169,53 @@ public class DefaultLitePullConsumer extends ClientConfig implements LitePullCon
 
     public void setPullThreadNums(int pullThreadNums) {
         this.pullThreadNums = pullThreadNums;
+    }
+
+    public int getPullBatchSize() {
+        return pullBatchSize;
+    }
+
+    public void setPullBatchSize(int pullBatchSize) {
+        this.pullBatchSize = pullBatchSize;
+    }
+
+    public int getPullThresholdForAll() {
+        return pullThresholdForAll;
+    }
+
+    public void setPullThresholdForAll(int pullThresholdForAll) {
+        this.pullThresholdForAll = pullThresholdForAll;
+    }
+
+    public int getPullThresholdForQueue() {
+        return pullThresholdForQueue;
+    }
+
+    public void setPullThresholdForQueue(int pullThresholdForQueue) {
+        this.pullThresholdForQueue = pullThresholdForQueue;
+    }
+
+    public int getPullThresholdSizeForQueue() {
+        return pullThresholdSizeForQueue;
+    }
+
+    public void setPullThresholdSizeForQueue(int pullThresholdSizeForQueue) {
+        this.pullThresholdSizeForQueue = pullThresholdSizeForQueue;
+    }
+
+    public int getConsumeMaxSpan() {
+        return consumeMaxSpan;
+    }
+
+    public void setConsumeMaxSpan(int consumeMaxSpan) {
+        this.consumeMaxSpan = consumeMaxSpan;
+    }
+
+    public long getConsumerPullTimeoutMillis() {
+        return consumerPullTimeoutMillis;
+    }
+
+    public void setConsumerPullTimeoutMillis(long consumerPullTimeoutMillis) {
+        this.consumerPullTimeoutMillis = consumerPullTimeoutMillis;
     }
 }

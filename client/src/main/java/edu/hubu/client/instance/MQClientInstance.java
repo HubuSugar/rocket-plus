@@ -460,4 +460,8 @@ public class MQClientInstance {
     public MQAdminImpl getMqAdminImpl() {
         return mqAdminImpl;
     }
+
+    public ConcurrentMap<String, TopicRouteData> getTopicRouteTable() {
+        return topicRouteTable;
+    }
 }

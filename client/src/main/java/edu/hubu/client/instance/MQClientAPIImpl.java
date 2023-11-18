@@ -1,5 +1,7 @@
 package edu.hubu.client.instance;
 
+import edu.hubu.client.consumer.PullCallback;
+import edu.hubu.client.consumer.PullResult;
 import edu.hubu.client.exception.MQClientException;
 import edu.hubu.client.hook.SendMessageContext;
 import edu.hubu.client.impl.CommunicationMode;
@@ -17,6 +19,7 @@ import edu.hubu.common.protocol.header.request.GetConsumerIdListByGroupRequestHe
 import edu.hubu.common.protocol.header.request.GetMaxOffsetRequestHeader;
 import edu.hubu.common.protocol.header.request.GetTopicRouteInfoHeader;
 import edu.hubu.common.protocol.body.GetConsumerIdListByGroupResponseBody;
+import edu.hubu.common.protocol.header.request.PullMessageRequestHeader;
 import edu.hubu.common.protocol.header.response.GetMaxOffsetResponseHeader;
 import edu.hubu.common.protocol.header.response.SendMessageResponseHeader;
 import edu.hubu.common.protocol.request.RequestCode;
@@ -71,6 +74,10 @@ public class MQClientAPIImpl {
         return sendMessage(brokerAddress,brokerName,message, requestHeader, timeout, mode, null, null, null, 0, context, producer);
     }
 
+
+    /**
+     * 发送消息
+     */
     public SendResult sendMessage(
             final String brokerAddr,
             final String brokerName,
@@ -173,6 +180,16 @@ public class MQClientAPIImpl {
         sendResult.setTraceOn(traceOn == null || "true".equalsIgnoreCase(traceOn));
 
         return sendResult;
+    }
+
+
+    /**
+     * 拉取消息
+     **/
+    public PullResult pullMessage(String brokerAddress, PullMessageRequestHeader requestHeader, long timeoutMillis, CommunicationMode communicationMode, PullCallback pullCallback) {
+
+
+        return null;
     }
 
 
