@@ -429,6 +429,20 @@ public class CommitLog {
                 bodyTotalLength + topicTopicLength + propertiesTotalLength;
     }
 
+    /**
+     * 真正的逻辑是找到对应的mappedFile，然后通过mappedFile取对应的字节
+     * @param offsetPy
+     * @param offset
+     * @return
+     */
+    public SelectMappedBufferResult getMessage(long offsetPy, Long offset) {
+        int mappedFileSize = this.messageStore.getMessageStoreConfig().getMappedFileSizeCommitlog();
+
+
+
+        return null;
+    }
+
 
     public static class GroupSubmitRequest {
         private long nextOffset;

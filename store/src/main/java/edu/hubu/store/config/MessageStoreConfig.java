@@ -51,6 +51,13 @@ public class MessageStoreConfig {
     // default 48m 48 * 1024 * 1024
     private int mappedFileSizeConsumeQueueExt = 1024;
     private int bitmapLengthConsumeQueueExt = 64;
+    private boolean checkOffsetInSlave = false;
+    private boolean diskFallRecorded = true;
+    private long accessMessageInMemoryMaxRatio = 40;
+    private int maxTransferBytesOnMessageInMemory = 1024 * 256;
+    private int maxTransferCountOnMessageInMemory = 32;
+    private int maxTransferBytesOnMessageInDisk = 1024 * 64;
+    private int maxTransferCountOnMessageInDisk = 8;
 
 
     public String getStorePathRootDir() {
@@ -236,5 +243,61 @@ public class MessageStoreConfig {
 
     public void setBitmapLengthConsumeQueueExt(int bitmapLengthConsumeQueueExt) {
         this.bitmapLengthConsumeQueueExt = bitmapLengthConsumeQueueExt;
+    }
+
+    public boolean isCheckOffsetInSlave() {
+        return checkOffsetInSlave;
+    }
+
+    public void setCheckOffsetInSlave(boolean checkOffsetInSlave) {
+        this.checkOffsetInSlave = checkOffsetInSlave;
+    }
+
+    public boolean isDiskFallRecorded() {
+        return diskFallRecorded;
+    }
+
+    public void setDiskFallRecorded(boolean diskFallRecorded) {
+        this.diskFallRecorded = diskFallRecorded;
+    }
+
+    public long getAccessMessageInMemoryMaxRatio() {
+        return accessMessageInMemoryMaxRatio;
+    }
+
+    public void setAccessMessageInMemoryMaxRatio(long accessMessageInMemoryMaxRatio) {
+        this.accessMessageInMemoryMaxRatio = accessMessageInMemoryMaxRatio;
+    }
+
+    public int getMaxTransferBytesOnMessageInDisk() {
+        return maxTransferBytesOnMessageInDisk;
+    }
+
+    public void setMaxTransferBytesOnMessageInDisk(int maxTransferBytesOnMessageInDisk) {
+        this.maxTransferBytesOnMessageInDisk = maxTransferBytesOnMessageInDisk;
+    }
+
+    public int getMaxTransferCountOnMessageInDisk() {
+        return maxTransferCountOnMessageInDisk;
+    }
+
+    public void setMaxTransferCountOnMessageInDisk(int maxTransferCountOnMessageInDisk) {
+        this.maxTransferCountOnMessageInDisk = maxTransferCountOnMessageInDisk;
+    }
+
+    public int getMaxTransferBytesOnMessageInMemory() {
+        return maxTransferBytesOnMessageInMemory;
+    }
+
+    public void setMaxTransferBytesOnMessageInMemory(int maxTransferBytesOnMessageInMemory) {
+        this.maxTransferBytesOnMessageInMemory = maxTransferBytesOnMessageInMemory;
+    }
+
+    public int getMaxTransferCountOnMessageInMemory() {
+        return maxTransferCountOnMessageInMemory;
+    }
+
+    public void setMaxTransferCountOnMessageInMemory(int maxTransferCountOnMessageInMemory) {
+        this.maxTransferCountOnMessageInMemory = maxTransferCountOnMessageInMemory;
     }
 }

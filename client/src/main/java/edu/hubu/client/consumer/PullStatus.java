@@ -6,4 +6,10 @@ package edu.hubu.client.consumer;
  * @description:
  */
 public enum PullStatus {
+
+    FOUND,
+    NO_NEW_MSG,
+    NO_MATCHED_MSG,
+    OFFSET_ILLEGAL
+
 }

@@ -14,6 +14,7 @@
       <module>common</module>
       <module>namesrv</module>
       <module>store</module>
+      <module>filter</module>
   </modules>
   <packaging>pom</packaging>
 

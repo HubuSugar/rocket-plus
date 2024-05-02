@@ -46,6 +46,10 @@ public class BrokerConfig {
     private boolean longPollingEnable = true;
     private int consumerManageThreadNums = 8;
     private int adminBrokerThreadNums = 8;
+    private boolean autoCreateSubscriptionGroup = true;
+    private boolean enablePropertyFilter = false;
+    //重试时是否支持消息过滤
+    private boolean filterSupportRetry;
 
 
     public static String localHostname(){
@@ -225,5 +229,29 @@ public class BrokerConfig {
 
     public void setAdminBrokerThreadNums(int adminBrokerThreadNums) {
         this.adminBrokerThreadNums = adminBrokerThreadNums;
+    }
+
+    public boolean isAutoCreateSubscriptionGroup() {
+        return autoCreateSubscriptionGroup;
+    }
+
+    public void setAutoCreateSubscriptionGroup(boolean autoCreateSubscriptionGroup) {
+        this.autoCreateSubscriptionGroup = autoCreateSubscriptionGroup;
+    }
+
+    public boolean isEnablePropertyFilter() {
+        return enablePropertyFilter;
+    }
+
+    public void setEnablePropertyFilter(boolean enablePropertyFilter) {
+        this.enablePropertyFilter = enablePropertyFilter;
+    }
+
+    public boolean isFilterSupportRetry() {
+        return filterSupportRetry;
+    }
+
+    public void setFilterSupportRetry(boolean filterSupportRetry) {
+        this.filterSupportRetry = filterSupportRetry;
     }
 }

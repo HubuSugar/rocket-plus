@@ -6,4 +6,8 @@ package edu.hubu.common;
  * @description:
  */
 public abstract class ConfigManager {
+
+    protected void persist(){
+
+    }
 }

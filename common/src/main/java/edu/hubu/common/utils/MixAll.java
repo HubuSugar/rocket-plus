@@ -12,6 +12,7 @@ public class MixAll {
     public static final String DEFAULT_TRACE_REGION = "DefaultRegion";
 
     public static final String RETRY_GROUP_TOPIC_PREFIX = "%RETRY_TOPIC%";
+    public static final String CID_RMQ_SYS_PREFIX = "CIS_RMQ_SYS_";
 
 
     public static String brokerVipChannel(boolean vipChannelEnable, String brokerAddr) {
@@ -24,5 +25,9 @@ public class MixAll {
         }else{
             return brokerAddr;
         }
+    }
+
+    public static boolean isSysConsumerGroup(final String consumerGroup) {
+        return consumerGroup.startsWith(CID_RMQ_SYS_PREFIX);
     }
 }

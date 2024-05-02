@@ -15,6 +15,7 @@ import edu.hubu.client.impl.rebalance.RebalanceLitePullImpl;
 import edu.hubu.client.instance.MQClientInstance;
 import edu.hubu.client.instance.MQClientManager;
 import edu.hubu.common.ServiceState;
+import edu.hubu.common.exception.broker.MQBrokerException;
 import edu.hubu.common.filter.ExpressionType;
 import edu.hubu.common.filter.FilterAPI;
 import edu.hubu.common.message.MessageExt;
@@ -22,6 +23,7 @@ import edu.hubu.common.message.MessageQueue;
 import edu.hubu.common.protocol.heartbeat.MessageModel;
 import edu.hubu.common.protocol.heartbeat.SubscriptionData;
 import edu.hubu.common.sysFlag.PullSysFlag;
+import edu.hubu.remoting.netty.exception.RemotingException;
 import edu.hubu.remoting.netty.handler.RpcHook;
 import lombok.extern.slf4j.Slf4j;
 
@@ -415,16 +417,16 @@ public class DefaultLitePullConsumerImpl implements MQConsumerInner{
     }
 
 
-    private PullResult pull(MessageQueue messageQueue, SubscriptionData subscriptionData, long offset, int maxNums) throws MQClientException {
+    private PullResult pull(MessageQueue messageQueue, SubscriptionData subscriptionData, long offset, int maxNums) throws MQClientException, MQBrokerException, RemotingException, InterruptedException {
         return pull(messageQueue, subscriptionData, offset, maxNums, defaultLitePullConsumer.getConsumerPullTimeoutMillis());
     }
 
-    private PullResult pull(MessageQueue mq, SubscriptionData subscriptionData, long offset, int maxNums, long timeoutMills) throws MQClientException {
+    private PullResult pull(MessageQueue mq, SubscriptionData subscriptionData, long offset, int maxNums, long timeoutMills) throws MQClientException, MQBrokerException, RemotingException, InterruptedException {
         return pullSyncImpl(mq, subscriptionData, offset, maxNums, true, timeoutMills);
     }
 
     private PullResult pullSyncImpl(MessageQueue mq, SubscriptionData subscriptionData, long offset, int maxNums,
-                                    boolean block, long timeout) throws MQClientException {
+                                    boolean block, long timeout) throws MQClientException, MQBrokerException, RemotingException, InterruptedException {
         if(null == mq){
             throw new MQClientException("mq is null", null);
         }

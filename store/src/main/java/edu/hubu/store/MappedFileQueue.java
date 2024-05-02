@@ -181,6 +181,10 @@ public class MappedFileQueue {
         return result;
     }
 
+    public MappedFile findMappedFileByOffset(long offset) {
+        return this.findMappedFileByOffset(offset, false);
+    }
+
     /**
      * 根据偏移量查找mappedFile
      * 根据第一个和最后一个mappedFile的偏移量和mappedFileSize来确定偏移量位于哪一个mappedFile
@@ -275,4 +279,5 @@ public class MappedFileQueue {
     public int getMappedFileSize() {
         return mappedFileSize;
     }
+
 }

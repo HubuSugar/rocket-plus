@@ -76,6 +76,14 @@ public class ConsumeQueue {
         return result;
     }
 
+    public long getMinOffsetInQueue() {
+        return this.minLogicOffset / CONSUME_QUEUE_UNIT_SIZE;
+    }
+
+    public long getMaxOffsetInQueue() {
+        return this.mappedFileQueue.getMaxOffset() / CONSUME_QUEUE_UNIT_SIZE;
+    }
+
     /**
      * 构建consumeQueue
      * @param request
@@ -174,6 +182,29 @@ public class ConsumeQueue {
         return false;
     }
 
+    public SelectMappedBufferResult getIndexBuffer(long startIndex) {
+        int mappedFileSize = this.mappedFileSize;
+        long offset = startIndex * CONSUME_QUEUE_UNIT_SIZE;
+        if(offset >= this.getMinLogicOffset()){
+            MappedFile mappedFile = this.mappedFileQueue.findMappedFileByOffset(offset);
+            if(mappedFile != null){
+               return mappedFile.selectMappedBuffer((int) (offset % mappedFileSize));
+            }
+        }
+
+        return null;
+    }
+
+    public long rollNextFile(final long index) {
+        int mappedFileSize = this.mappedFileSize;
+        int totalUnits = mappedFileSize / CONSUME_QUEUE_UNIT_SIZE;
+        return index + totalUnits - index % totalUnits;
+    }
+
+    public boolean getExt(long tagsCode, ConsumeQueueExt.CqUnitExt cqUnitExt) {
+        return false;
+    }
+
     public void fillPreBlank(final MappedFile mappedFile, final long offset) {
         ByteBuffer buffer = ByteBuffer.allocate(CONSUME_QUEUE_UNIT_SIZE);
         buffer.putLong(0L);
@@ -234,6 +265,10 @@ public class ConsumeQueue {
 
     public int getMappedFileSize() {
         return mappedFileSize;
+    }
+
+    public long getMinLogicOffset() {
+        return minLogicOffset;
     }
 
 }

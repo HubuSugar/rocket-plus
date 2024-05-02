@@ -31,4 +31,20 @@ public class FilterAPI {
         }
         return subscriptionData;
     }
+
+    public static SubscriptionData build(final String topic, final String substring, final String type) throws Exception {
+
+        if(ExpressionType.TAG.equals(type) || type == null){
+            return buildSubscriptionData(null, topic, substring);
+        }
+
+        if(substring == null || substring.length() < 1){
+            throw new IllegalArgumentException("Expression can not be null: " + type);
+        }
+        SubscriptionData subscriptionData = new SubscriptionData();
+        subscriptionData.setTopic(topic);
+        subscriptionData.setSubString(substring);
+        subscriptionData.setExpressionType(type);
+        return subscriptionData;
+    }
 }

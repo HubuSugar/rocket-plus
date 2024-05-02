@@ -11,6 +11,10 @@ import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
+ * <ul>groupName</ul>
+ * <ul>groupName和SubscriptionData对应关系</ul>
+ * <ul>channel和channel配置信息</ul>
+ *
  * @author: sugar
  * @date: 2023/11/4
  * @description:
@@ -31,6 +35,10 @@ public class ConsumerGroupInfo {
         this.consumeType = consumeType;
         this.messageModel = messageModel;
         this.consumeFromWhere = consumeFromWhere;
+    }
+
+    public SubscriptionData findSubscriptionData(String topic) {
+        return this.subscriptionTable.get(topic);
     }
 
 
@@ -74,4 +82,5 @@ public class ConsumerGroupInfo {
     public void setLastUpdateTimestamp(long lastUpdateTimestamp) {
         this.lastUpdateTimestamp = lastUpdateTimestamp;
     }
+
 }

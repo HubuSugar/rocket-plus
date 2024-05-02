@@ -7,6 +7,7 @@ import edu.hubu.client.hook.FilterMessageHook;
 import edu.hubu.client.impl.CommunicationMode;
 import edu.hubu.client.impl.FindBrokerResult;
 import edu.hubu.client.instance.MQClientInstance;
+import edu.hubu.common.exception.broker.MQBrokerException;
 import edu.hubu.common.filter.ExpressionType;
 import edu.hubu.common.message.MessageQueue;
 import edu.hubu.common.protocol.header.request.PullMessageRequestHeader;
@@ -14,6 +15,7 @@ import edu.hubu.common.protocol.heartbeat.SubscriptionData;
 import edu.hubu.common.protocol.route.TopicRouteData;
 import edu.hubu.common.sysFlag.PullSysFlag;
 import edu.hubu.common.utils.MixAll;
+import edu.hubu.remoting.netty.exception.RemotingException;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -72,7 +74,7 @@ public class PullAPIWrapper {
                                      final long brokerSuspendMaxTimeMillis,
                                      final long timeoutMillis,
                                      final CommunicationMode communicationMode,
-                                     final PullCallback pullCallback) throws MQClientException {
+                                     final PullCallback pullCallback) throws MQClientException, MQBrokerException, RemotingException, InterruptedException {
         FindBrokerResult findBrokerResult = this.mqClientInstance.findBrokerAddressInSubscribe(mq.getBrokerName(),
                 this.recalculatePullFromWhichNode(mq), false);
         if(findBrokerResult == null){

@@ -2,6 +2,7 @@ package edu.hubu.broker.starter;
 
 import edu.hubu.broker.client.ConsumerManager;
 import edu.hubu.broker.client.rebalance.RebalanceLockManager;
+import edu.hubu.broker.filter.ConsumerFilterManager;
 import edu.hubu.broker.filtersrv.FilterServerManager;
 import edu.hubu.broker.longpolling.NotifyMessageArrivingListener;
 import edu.hubu.broker.longpolling.PullRequestHoldService;
@@ -10,6 +11,7 @@ import edu.hubu.broker.processor.AdminBrokerProcessor;
 import edu.hubu.broker.processor.ConsumerManagerProcessor;
 import edu.hubu.broker.processor.PullMessageProcessor;
 import edu.hubu.broker.processor.SendMessageProcessor;
+import edu.hubu.broker.subscription.SubscriptionGroupManager;
 import edu.hubu.broker.topic.TopicConfigManager;
 import edu.hubu.common.BrokerConfig;
 import edu.hubu.common.PermName;
@@ -60,9 +62,11 @@ public class BrokerController {
     private MessageStore messageStore;
     private final PullRequestHoldService pullHoldService;
     private final MessageArrivingListener messageArrivingListener;
+    private final SubscriptionGroupManager subscriptionGroupManager;
     private final PullMessageProcessor pullMessageProcessor;
 
     private final ConsumerManager consumerManager;
+    private final ConsumerFilterManager consumerFilterManager;
 
 
     private final ScheduledExecutorService scheduledExecutorService = Executors.newSingleThreadScheduledExecutor(new ThreadFactory() {
@@ -81,10 +85,13 @@ public class BrokerController {
         this.brokerConfig = brokerConfig;
         this.messageStoreConfig = messageStoreConfig;
 
+        this.subscriptionGroupManager = new SubscriptionGroupManager(this);
+        this.brokerOutAPI = new BrokerOutAPI(nettyClientConfig);
+
+
         this.sendMessageThreadQueue = new LinkedBlockingQueue<>(brokerConfig.getSendMessageQueueCapacity());
         this.pullMessageThreadQueue = new LinkedBlockingQueue<>(brokerConfig.getPullThreadQueueCapacity());
 
-        this.brokerOutAPI = new BrokerOutAPI(nettyClientConfig);
 
         this.topicConfigManager = new TopicConfigManager(this);
         this.filterServerManager = new FilterServerManager(this);
@@ -92,6 +99,7 @@ public class BrokerController {
         this.pullHoldService = new PullRequestHoldService(this);
         this.messageArrivingListener = new NotifyMessageArrivingListener(this.pullHoldService);
         this.consumerManager = new ConsumerManager();
+        this.consumerFilterManager = new ConsumerFilterManager(this);
 
         this.pullMessageProcessor = new PullMessageProcessor(this);
     }
@@ -279,6 +287,10 @@ public class BrokerController {
         return nettyServerConfig;
     }
 
+    public MessageStoreConfig getMessageStoreConfig() {
+        return messageStoreConfig;
+    }
+
     public MessageStore getMessageStore() {
         return messageStore;
     }
@@ -291,4 +303,15 @@ public class BrokerController {
         return consumerManager;
     }
 
+    public SubscriptionGroupManager getSubscriptionGroupManager() {
+        return subscriptionGroupManager;
+    }
+
+    public PullRequestHoldService getPullHoldService() {
+        return pullHoldService;
+    }
+
+    public ConsumerFilterManager getConsumerFilterManager() {
+        return consumerFilterManager;
+    }
 }

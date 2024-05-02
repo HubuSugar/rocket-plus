@@ -7,6 +7,7 @@ import java.util.HashSet;
 import java.util.Set;
 
 /**
+ * 订阅topic, tag, tag的hash值
  * @author: sugar
  * @date: 2023/10/29
  * @description:

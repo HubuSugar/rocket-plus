@@ -46,4 +46,16 @@ public class PullSysFlag {
     public static boolean hasClassFilterFlag(final int sysFlag) {
         return (sysFlag & FLAG_CLASS_FILTER) == FLAG_CLASS_FILTER;
     }
+
+    public static boolean hasSuspendFlag(final int sysFlag){
+        return (sysFlag & FLAG_SUSPEND) == FLAG_SUSPEND;
+    }
+
+    public static boolean hasCommitLogFlag(final int sysFlag){
+        return (sysFlag & FLAG_COMMIT_OFFSET) == FLAG_COMMIT_OFFSET;
+    }
+
+    public static boolean hasSubscriptionFlag(final int sysFlag){
+        return (sysFlag & FLAG_SUBSCRIPTION) == FLAG_SUBSCRIPTION;
+    }
 }

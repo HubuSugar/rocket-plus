@@ -7,7 +7,7 @@ import java.util.concurrent.atomic.AtomicLong;
 /**
  * @author: sugar
  * @date: 2023/6/11
- * @description:
+ * @description: 用于并发数据版本控制
  */
 public class DataVersion extends RemotingSerialize {
     private long timestamp = System.currentTimeMillis();

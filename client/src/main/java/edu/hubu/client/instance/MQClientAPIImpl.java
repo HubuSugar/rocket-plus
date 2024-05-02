@@ -2,11 +2,13 @@ package edu.hubu.client.instance;
 
 import edu.hubu.client.consumer.PullCallback;
 import edu.hubu.client.consumer.PullResult;
+import edu.hubu.client.consumer.PullStatus;
 import edu.hubu.client.exception.MQClientException;
 import edu.hubu.client.hook.SendMessageContext;
 import edu.hubu.client.impl.CommunicationMode;
 import edu.hubu.client.impl.SendCallback;
 import edu.hubu.client.impl.TopicPublishInfo;
+import edu.hubu.client.impl.consumer.PullResultExt;
 import edu.hubu.client.impl.producer.DefaultMQProducerImpl;
 import edu.hubu.client.producer.SendResult;
 import edu.hubu.client.producer.SendStatus;
@@ -21,6 +23,7 @@ import edu.hubu.common.protocol.header.request.GetTopicRouteInfoHeader;
 import edu.hubu.common.protocol.body.GetConsumerIdListByGroupResponseBody;
 import edu.hubu.common.protocol.header.request.PullMessageRequestHeader;
 import edu.hubu.common.protocol.header.response.GetMaxOffsetResponseHeader;
+import edu.hubu.common.protocol.header.response.PullMessageResponseHeader;
 import edu.hubu.common.protocol.header.response.SendMessageResponseHeader;
 import edu.hubu.common.protocol.request.RequestCode;
 import edu.hubu.common.protocol.route.TopicRouteData;
@@ -186,12 +189,52 @@ public class MQClientAPIImpl {
     /**
      * 拉取消息
      **/
-    public PullResult pullMessage(String brokerAddress, PullMessageRequestHeader requestHeader, long timeoutMillis, CommunicationMode communicationMode, PullCallback pullCallback) {
+    public PullResult pullMessage(String brokerAddress, PullMessageRequestHeader requestHeader, long timeoutMillis, CommunicationMode communicationMode,
+                                  PullCallback pullCallback) throws RemotingException, MQBrokerException, InterruptedException {
 
-
+        RemotingCommand request = RemotingCommand.createRequestCommand(RequestCode.PULL_MESSAGE, requestHeader);
+        switch (communicationMode){
+            case SYNC:
+                return this.pullMessageSync(brokerAddress, request, timeoutMillis);
+            case ONEWAY:
+                assert false;
+                return null;
+            case ASYNC:
+                //implement async
+                return null;
+        }
         return null;
     }
 
+    public PullResult pullMessageSync(final String brokerAddr, final RemotingCommand request, final long timeoutMillis) throws RemotingException, InterruptedException, MQBrokerException {
+        RemotingCommand response = this.remotingClient.invokeSync(brokerAddr, request, timeoutMillis);
+        return this.processPullResponse(response);
+    }
+
+
+    private PullResult processPullResponse(final RemotingCommand response) throws MQBrokerException {
+        PullStatus pullStatus;
+        switch (response.getCode()){
+            case ResponseCode.SUCCESS:
+                pullStatus = PullStatus.FOUND;
+                break;
+            case ResponseCode.PULL_NOT_FOUND:
+                pullStatus = PullStatus.NO_NEW_MSG;
+                break;
+            case ResponseCode.PULL_RETRY_IMMEDIATELY:
+                pullStatus = PullStatus.NO_MATCHED_MSG;
+                break;
+            case ResponseCode.PULL_OFFSET_MOVED:
+                pullStatus = PullStatus.OFFSET_ILLEGAL;
+                break;
+            default:
+                throw new MQBrokerException(response.getCode(), response.getRemark());
+        }
+
+        PullMessageResponseHeader responseHeader= (PullMessageResponseHeader) response.decodeCustomCommandHeader(PullMessageResponseHeader.class);
+
+        return new PullResultExt(pullStatus, responseHeader.getNextBeginOffset(), responseHeader.getMinOffset(), responseHeader.getMaxOffset(), null, responseHeader.getSuggestWhichBrokerId(), response.getBody());
+    }
 
     /**
      * 通过默认topic从nameServer获取topicRouteInfo
