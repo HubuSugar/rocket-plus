@@ -124,6 +124,11 @@ public class DefaultMessageStore implements MessageStore {
     }
 
     @Override
+    public long now() {
+        return System.currentTimeMillis();
+    }
+
+    @Override
     public boolean load() {
         boolean result = true;
 
@@ -369,8 +374,8 @@ public class DefaultMessageStore implements MessageStore {
                                 continue;
                             }
 
-                            SelectMappedBufferResult mappedBufferResult = this.commitLog.getMessage(offsetPy, offset);
-                            if (mappedBufferResult == null) {
+                            SelectMappedBufferResult selectResult = this.commitLog.getMessage(offsetPy, sizePy);
+                            if (selectResult == null) {
                                 if(getMessageResult.getBufferTotalSize() == 0){
                                     status = GetMessageStatus.MSG_WAS_REMOVING;
                                 }
@@ -378,11 +383,21 @@ public class DefaultMessageStore implements MessageStore {
                                 continue;
                             }
 
-                            getMessageResult.addMessage(mappedBufferResult);
+                            getMessageResult.addMessage(selectResult);
                             status = GetMessageStatus.FOUND;
                             nextPhyFileStartOffset = Long.MIN_VALUE;
                         }
+                        //如果需要记录落后的记录
+                        if(diskFallRecorded){
+                            long fallBehind = maxOffsetPy - maxPhyOffsetPulling;
+                            //统计
+                        }
 
+                        //
+                        nextBeginOffset = offset + ( i / ConsumeQueue.CONSUME_QUEUE_UNIT_SIZE);
+                        long diff = maxOffsetPy - maxPhyOffsetPulling;
+                        long memory = (long) (StoreUtil.TOTAL_PHYSICAL_MEMORY_SIZE * (this.messageStoreConfig.getAccessMessageInMemoryMaxRatio() / 100.0));
+                        getMessageResult.setSuggestPullingFromSlave(diff > memory);
                     }finally {
                         bufferConsumeQueue.release();
                     }

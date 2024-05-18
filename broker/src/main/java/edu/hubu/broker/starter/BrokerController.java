@@ -314,4 +314,8 @@ public class BrokerController {
     public ConsumerFilterManager getConsumerFilterManager() {
         return consumerFilterManager;
     }
+
+    public PullMessageProcessor getPullMessageProcessor() {
+        return pullMessageProcessor;
+    }
 }

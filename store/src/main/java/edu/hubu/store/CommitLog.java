@@ -409,18 +409,18 @@ public class CommitLog {
     protected static int calculateMessageLength(int sysFlag, int propertiesLength, int topicLength, int bodyLength) {
         int bornHostLength = (sysFlag & MessageSysFlag.FLAG_BORN_HOST_V6) == 0 ? (4 + 4) : (4 + 16);
         int storeHostLength = (sysFlag & MessageSysFlag.FLAG_STORE_HOST_V6) == 0 ? (4 + 4) : (4 + 16);
-        int totalSize = 4;
-        int magicCode = 4;
-        int bodyCRC = 4;
-        int queueId = 4;
-        int flag = 4;
-        int queueOffset = 8;
-        int physicalOffset = 8;
-        int sysFlagLength = 4;
-        int bornTimestamp = 8;
-        int storeTimestamp = 8;
-        int reconsumeTimes = 4;
-        int prepareTransactionOffset = 8;
+        int totalSize = MessageStruct.MSG_TOTAL_SIZE;
+        int magicCode = MessageStruct.MSG_MAGIC_CODE;
+        int bodyCRC = MessageStruct.MSG_BODY_CRC;
+        int queueId = MessageStruct.MSG_QUEUE_ID;
+        int flag = MessageStruct.MSG_FLAG;
+        int queueOffset = MessageStruct.MSG_QUEUE_OFFSET;
+        int physicalOffset = MessageStruct.MSG_PHYSICAL_OFFSET;
+        int sysFlagLength = MessageStruct.MSG_SYS_FLAG;
+        int bornTimestamp = MessageStruct.MSG_BORN_TIMESTAMP;
+        int storeTimestamp = MessageStruct.MSG_STORE_TIMESTAMP;
+        int reconsumeTimes = MessageStruct.MSG_RECONSUME_TIMES;
+        int prepareTransactionOffset = MessageStruct.MSG_PREPARE_TRANS_OFFSET;
         int bodyTotalLength = 4 + Math.max(bodyLength, 0);
         int topicTopicLength = 1 + topicLength;
         int propertiesTotalLength = 2 + Math.max(propertiesLength, 0);
@@ -431,14 +431,17 @@ public class CommitLog {
 
     /**
      * 真正的逻辑是找到对应的mappedFile，然后通过mappedFile取对应的字节
-     * @param offsetPy
      * @param offset
+     * @param size
      * @return
      */
-    public SelectMappedBufferResult getMessage(long offsetPy, Long offset) {
+    public SelectMappedBufferResult getMessage(final long offset,final int size) {
         int mappedFileSize = this.messageStore.getMessageStoreConfig().getMappedFileSizeCommitlog();
-
-
+        MappedFile mappedFile = this.mappedFileQueue.findMappedFileByOffset(offset, offset == 0);
+        if(mappedFile != null){
+            int pos = (int) (offset % mappedFileSize);
+            return mappedFile.selectMappedBuffer(pos, size);
+        }
 
         return null;
     }

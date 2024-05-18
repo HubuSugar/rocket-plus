@@ -15,6 +15,7 @@ public class MessageDecoder {
 
     public static final char NAME_VALUE_SEPARATOR = 1;
     public static final char PROPERTY_SEPARATOR = 2;
+    public static final int SYS_FLAG_POSITION = 4 + 4 + 4 + 4 + 4 + 8 + 8;
 
     public static String properties2String(Map<String, String> properties){
         StringBuilder sb = new StringBuilder();

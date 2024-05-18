@@ -30,7 +30,8 @@
 
   <properties>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-    <netty-all.version>4.1.68.Final</netty-all.version>
+    <netty-all.version>4.0.42.Final</netty-all.version>
+<!--    <netty-all.version>4.1.68.Final</netty-all.version>-->
     <fastjson.version>1.2.69</fastjson.version>
   </properties>
 

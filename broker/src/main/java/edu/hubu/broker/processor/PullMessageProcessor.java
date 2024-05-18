@@ -5,17 +5,23 @@ import edu.hubu.broker.filter.ConsumerFilterData;
 import edu.hubu.broker.filter.ConsumerFilterManager;
 import edu.hubu.broker.filter.ExpressionForRetryMessageFilter;
 import edu.hubu.broker.filter.ExpressionMessageFilter;
+import edu.hubu.broker.longpolling.PullRequest;
+import edu.hubu.broker.pageCache.ManyMessageTransfer;
 import edu.hubu.broker.starter.BrokerController;
 import edu.hubu.common.PermName;
 import edu.hubu.common.TopicConfig;
 import edu.hubu.common.filter.ExpressionType;
 import edu.hubu.common.filter.FilterAPI;
+import edu.hubu.common.message.MessageConst;
+import edu.hubu.common.message.MessageDecoder;
 import edu.hubu.common.message.MessageQueue;
+import edu.hubu.common.message.MessageStruct;
 import edu.hubu.common.protocol.header.request.PullMessageRequestHeader;
 import edu.hubu.common.protocol.header.response.PullMessageResponseHeader;
 import edu.hubu.common.protocol.heartbeat.MessageModel;
 import edu.hubu.common.protocol.heartbeat.SubscriptionData;
 import edu.hubu.common.subcription.SubscriptionGroupConfig;
+import edu.hubu.common.sysFlag.MessageSysFlag;
 import edu.hubu.common.sysFlag.PullSysFlag;
 import edu.hubu.common.utils.MixAll;
 import edu.hubu.remoting.netty.CustomCommandHeader;
@@ -30,8 +36,11 @@ import edu.hubu.store.MessageFilter;
 import edu.hubu.store.config.BrokerRole;
 import io.netty.channel.*;
 import lombok.extern.slf4j.Slf4j;
+import org.ietf.jgss.MessageProp;
 
 import javax.print.DocFlavor;
+import java.nio.ByteBuffer;
+import java.util.List;
 
 /**
  * @author: sugar
@@ -193,7 +202,7 @@ public class PullMessageProcessor extends AsyncNettyRequestProcessor implements 
             responseHeader.setMaxOffset(getMessageResult.getMaxOffset());
 
             if (getMessageResult.isSuggestPullingFromSlave()) {
-                responseHeader.setSuggestWhichBrokerId(subscriptionGroupConfig.getWhichBrokerConsumeSlowly());
+                responseHeader.setSuggestWhichBrokerId(subscriptionGroupConfig.getWhichBrokerWhenConsumeSlowly());
             } else {
                 responseHeader.setSuggestWhichBrokerId(MixAll.MASTER_ID);
             }
@@ -203,7 +212,7 @@ public class PullMessageProcessor extends AsyncNettyRequestProcessor implements 
                 case ASYNC_MASTER:
                     break;
                 case SLAVE:
-                    if (getMessageResult.isSuggestPullingFromSlave()) {
+                    if (!brokerController.getBrokerConfig().isSlaveReadEnable()) {
                         response.setCode(ResponseCode.PULL_RETRY_IMMEDIATELY);
                         responseHeader.setSuggestWhichBrokerId(MixAll.MASTER_ID);
                     }
@@ -213,7 +222,7 @@ public class PullMessageProcessor extends AsyncNettyRequestProcessor implements 
             if (this.brokerController.getBrokerConfig().isSlaveReadEnable()) {
                 if (getMessageResult.isSuggestPullingFromSlave()) {
                     //说明从节点拉取消息慢，从其他节点开始拉取
-                    responseHeader.setSuggestWhichBrokerId(subscriptionGroupConfig.getWhichBrokerConsumeSlowly());
+                    responseHeader.setSuggestWhichBrokerId(subscriptionGroupConfig.getWhichBrokerWhenConsumeSlowly());
                 } else {
                     responseHeader.setSuggestWhichBrokerId(subscriptionGroupConfig.getBrokerId());
                 }
@@ -254,23 +263,29 @@ public class PullMessageProcessor extends AsyncNettyRequestProcessor implements 
                     break;
             }
 
+            //execute message hook
+
             switch (response.getCode()) {
                 case ResponseCode.SUCCESS:
                     //统计
+
+
                     //通过堆内存
                     if (this.brokerController.getBrokerConfig().isTransferMsgByHeap()) {
-
+                        final long beginTimeMillis = System.currentTimeMillis();
                         final byte[] r = this.readGetMessageResult(getMessageResult, requestHeader.getConsumerGroup(), requestHeader.getTopic(), requestHeader.getQueueId());
+
+                        //统计
                         response.setBody(r);
                     } else {
                         try {
-                            FileRegion fileRegion = new ManyMessageTransfer(getMessageResult.getBufferTotalSize(), getMessageResult);
+                            FileRegion fileRegion = new ManyMessageTransfer(response.encodeHeader(getMessageResult.getBufferTotalSize()), getMessageResult);
                             channel.writeAndFlush(fileRegion).addListener(new ChannelFutureListener() {
                                 @Override
                                 public void operationComplete(ChannelFuture future) throws Exception {
                                     getMessageResult.release();
                                     if (!future.isSuccess()) {
-                                        log.error("", future.cause());
+                                        log.error("transfer many message by pagecache failed: {}", channel.remoteAddress(),  future.cause());
                                     }
                                 }
                             });
@@ -295,8 +310,9 @@ public class PullMessageProcessor extends AsyncNettyRequestProcessor implements 
                                 queueOffset, subscriptionData, messageFilter);
 
                         this.brokerController.getPullHoldService().suspendPullRequest(pullRequest, topic, queueId);
+                        response = null;
+                        break;
                     }
-                    break;
                 case ResponseCode.PULL_RETRY_IMMEDIATELY:
                     break;
                 case ResponseCode.PULL_OFFSET_MOVED:
@@ -337,5 +353,44 @@ public class PullMessageProcessor extends AsyncNettyRequestProcessor implements 
         }
 
         return response;
+    }
+
+    private byte[] readGetMessageResult(final GetMessageResult getResult,final String consumerGroup,
+                                        final String topic,final Integer queueId) {
+        ByteBuffer buffer = ByteBuffer.allocate(getResult.getBufferTotalSize());
+        long storeTimestamp = 0;
+        try{
+            List<ByteBuffer> msgBufferList = getResult.getMsgBufferList();
+
+            for (ByteBuffer bb : msgBufferList) {
+                buffer.put(bb);
+
+                int sysFlag = bb.getInt(MessageDecoder.SYS_FLAG_POSITION);
+                int bornHostLength = (sysFlag & MessageSysFlag.FLAG_BORN_HOST_V6) == 0 ? 8 : 20;
+
+                int msgStoreTimePos = MessageStruct.MSG_TOTAL_SIZE +
+                        MessageStruct.MSG_MAGIC_CODE +
+                        MessageStruct.MSG_BODY_CRC +
+                        MessageStruct.MSG_QUEUE_ID +
+                        MessageStruct.MSG_FLAG +
+                        MessageStruct.MSG_QUEUE_OFFSET +
+                        MessageStruct.MSG_PHYSICAL_OFFSET +
+                        MessageStruct.MSG_SYS_FLAG +
+                        MessageStruct.MSG_BORN_TIMESTAMP +
+                        bornHostLength;
+                storeTimestamp = bb.getLong(msgStoreTimePos);
+            }
+        }finally {
+            getResult.release();
+        }
+
+
+        //统计
+
+        return buffer.array();
+    }
+
+    public void executeRequestWhenWakeUp(final Channel channel, RemotingCommand request) {
+
     }
 }

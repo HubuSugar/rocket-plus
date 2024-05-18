@@ -50,6 +50,9 @@ public class BrokerConfig {
     private boolean enablePropertyFilter = false;
     //重试时是否支持消息过滤
     private boolean filterSupportRetry;
+    private boolean slaveReadEnable = false;
+    private boolean transferMsgByHeap = true;
+    private long shortPollingTimeMillis = 1000;
 
 
     public static String localHostname(){
@@ -253,5 +256,29 @@ public class BrokerConfig {
 
     public void setFilterSupportRetry(boolean filterSupportRetry) {
         this.filterSupportRetry = filterSupportRetry;
+    }
+
+    public boolean isSlaveReadEnable() {
+        return slaveReadEnable;
+    }
+
+    public void setSlaveReadEnable(boolean slaveReadEnable) {
+        this.slaveReadEnable = slaveReadEnable;
+    }
+
+    public boolean isTransferMsgByHeap() {
+        return transferMsgByHeap;
+    }
+
+    public void setTransferMsgByHeap(boolean transferMsgByHeap) {
+        this.transferMsgByHeap = transferMsgByHeap;
+    }
+
+    public long getShortPollingTimeMillis() {
+        return shortPollingTimeMillis;
+    }
+
+    public void setShortPollingTimeMillis(long shortPollingTimeMillis) {
+        this.shortPollingTimeMillis = shortPollingTimeMillis;
     }
 }

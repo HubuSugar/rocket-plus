@@ -1,5 +1,7 @@
 package edu.hubu.store;
 
+import edu.hubu.store.stats.BrokerStatsManager;
+
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.List;
@@ -26,7 +28,16 @@ public class GetMessageResult {
     }
 
     public void addMessage(SelectMappedBufferResult mappedBufferResult) {
+        this.msgMappedList.add(mappedBufferResult);
+        msgBufferList.add(mappedBufferResult.getByteBuffer());
+        bufferTotalSize += mappedBufferResult.getSize();
+        this.msgCount4Commercial += (int) Math.ceil(mappedBufferResult.getSize() / BrokerStatsManager.PER_MSG_COUNT);
+    }
 
+    public void release() {
+        for (SelectMappedBufferResult selectResult : this.msgMappedList) {
+            selectResult.release();
+        }
     }
 
     public List<ByteBuffer> getMsgBufferList() {

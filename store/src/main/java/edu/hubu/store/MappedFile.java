@@ -220,6 +220,29 @@ public class MappedFile extends ReferenceResource{
     }
 
     /**
+     * 从起始位置截取mappedFile,
+     * @param pos mappedFile位置
+     * @param size 截取多长内容
+     */
+    public SelectMappedBufferResult selectMappedBuffer(int pos, int size) {
+        int readPosition = getReadPosition();
+        if( (pos + size) <= readPosition){
+            if(isHold()){
+                ByteBuffer buffer = this.mappedByteBuffer.slice();
+                buffer.position(pos);
+                ByteBuffer bufferNew = buffer.slice();
+                bufferNew.limit(size);
+                return new SelectMappedBufferResult(this.fileFromOffset + pos, bufferNew, size, this);
+            }else{
+                log.warn("matched, but hold failed, request pos: " + pos + " fileFromOffset:" + fileFromOffset);
+            }
+        }else{
+            log.warn("select mapped buffer request pos invalid, pos: {}, fileFromOffset: {},size:{}", pos, size, this.fileFromOffset);
+        }
+        return null;
+    }
+
+    /**
      * 获取需要执行doReput的一段消息
      * <p>|-----------P-----------------------------------------------| </p>
      * <p>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;|---------------------|</p>

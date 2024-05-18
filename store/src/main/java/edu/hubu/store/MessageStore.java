@@ -12,6 +12,8 @@ import java.util.concurrent.CompletableFuture;
  */
 public interface MessageStore {
 
+    long now();
+
     boolean load();
 
     void start() throws Exception;
