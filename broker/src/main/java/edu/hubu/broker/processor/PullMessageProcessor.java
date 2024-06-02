@@ -12,17 +12,16 @@ import edu.hubu.common.PermName;
 import edu.hubu.common.TopicConfig;
 import edu.hubu.common.filter.ExpressionType;
 import edu.hubu.common.filter.FilterAPI;
-import edu.hubu.common.message.MessageConst;
-import edu.hubu.common.message.MessageDecoder;
-import edu.hubu.common.message.MessageQueue;
-import edu.hubu.common.message.MessageStruct;
+import edu.hubu.common.message.*;
 import edu.hubu.common.protocol.header.request.PullMessageRequestHeader;
 import edu.hubu.common.protocol.header.response.PullMessageResponseHeader;
 import edu.hubu.common.protocol.heartbeat.MessageModel;
 import edu.hubu.common.protocol.heartbeat.SubscriptionData;
+import edu.hubu.common.protocol.topic.OffsetMovedEvent;
 import edu.hubu.common.subcription.SubscriptionGroupConfig;
 import edu.hubu.common.sysFlag.MessageSysFlag;
 import edu.hubu.common.sysFlag.PullSysFlag;
+import edu.hubu.common.topic.TopicValidator;
 import edu.hubu.common.utils.MixAll;
 import edu.hubu.remoting.netty.CustomCommandHeader;
 import edu.hubu.remoting.netty.RemotingCommand;
@@ -323,9 +322,14 @@ public class PullMessageProcessor extends AsyncNettyRequestProcessor implements 
                         mq.setQueueId(requestHeader.getQueueId());
                         mq.setBrokerName(this.brokerController.getBrokerConfig().getBrokerName());
 
-                        OffsetMoveEvent offsetMoveEvent = new OffsetMoveEvent();
+                        OffsetMovedEvent offsetMoveEvent = new OffsetMovedEvent();
+                        offsetMoveEvent.setConsumerGroup(requestHeader.getConsumerGroup());
+                        offsetMoveEvent.setMessageQueue(mq);
+                        offsetMoveEvent.setOffsetRequest(requestHeader.getQueueOffset());
+                        offsetMoveEvent.setOffsetNew(getMessageResult.getNextBeginOffset());
 
-                        this.generateOffsetMoveEvent(offsetMoveEvent);
+                        //mq内部消息
+                        this.generateOffsetMovedEvent(offsetMoveEvent);
                         log.warn("PULL_OFFSET_MOVED:correction");
                     } else {
                         responseHeader.setSuggestWhichBrokerId(subscriptionGroupConfig.getBrokerId());
@@ -353,6 +357,32 @@ public class PullMessageProcessor extends AsyncNettyRequestProcessor implements 
         }
 
         return response;
+    }
+
+    private void generateOffsetMovedEvent(OffsetMovedEvent offsetMoveEvent) {
+        // try {
+        //     MessageExtBrokerInner msgInner = new MessageExtBrokerInner();
+        //     msgInner.setTopic(TopicValidator.RMQ_SYS_OFFSET_MOVED_EVENT);
+        //     msgInner.setTags(event.getConsumerGroup());
+        //     msgInner.setDelayTimeLevel(0);
+        //     msgInner.setKeys(event.getConsumerGroup());
+        //     msgInner.setBody(event.encode());
+        //     msgInner.setFlag(0);
+        //     msgInner.setPropertiesString(MessageDecoder.messageProperties2String(msgInner.getProperties()));
+        //     msgInner.setTagsCode(MessageExtBrokerInner.tagsString2tagsCode(TopicFilterType.SINGLE_TAG, msgInner.getTags()));
+        //
+        //     msgInner.setQueueId(0);
+        //     msgInner.setSysFlag(0);
+        //     msgInner.setBornTimestamp(System.currentTimeMillis());
+        //     msgInner.setBornHost(RemotingUtil.string2SocketAddress(this.brokerController.getBrokerAddr()));
+        //     msgInner.setStoreHost(msgInner.getBornHost());
+        //
+        //     msgInner.setReconsumeTimes(0);
+        //
+        //     PutMessageResult putMessageResult = this.brokerController.getMessageStore().putMessage(msgInner);
+        // } catch (Exception e) {
+        //     log.warn(String.format("generateOffsetMovedEvent Exception, %s", event.toString()), e);
+        // }
     }
 
     private byte[] readGetMessageResult(final GetMessageResult getResult,final String consumerGroup,

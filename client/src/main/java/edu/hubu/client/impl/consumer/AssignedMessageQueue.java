@@ -114,6 +114,14 @@ public class AssignedMessageQueue {
         return -1;
     }
 
+    public long getConsumerOffset(MessageQueue messageQueue) {
+        MessageQueueState messageQueueState = this.assignedQueueState.get(messageQueue);
+        if(messageQueueState != null){
+            return messageQueueState.getConsumeOffset();
+        }
+        return -1;
+    }
+
 
     static class MessageQueueState {
         private MessageQueue messageQueue;

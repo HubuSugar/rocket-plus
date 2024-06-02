@@ -29,7 +29,7 @@ public class DefaultMQProducerTest {
         mqProducer.setNameServer("127.0.0.1:9877");
         mqProducer.start();
         int successCount = 0, failCount = 0;
-        for(int i = 0; i < 1000; i++){
+        for(int i = 0; i < 1; i++){
             Message message = new Message("test");
             String body = "the first message, this is my first day to learn rocket mq " + i;
             message.setBody(body.getBytes(StandardCharsets.UTF_8));

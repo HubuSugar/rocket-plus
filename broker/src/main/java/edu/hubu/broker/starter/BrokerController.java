@@ -6,6 +6,7 @@ import edu.hubu.broker.filter.ConsumerFilterManager;
 import edu.hubu.broker.filtersrv.FilterServerManager;
 import edu.hubu.broker.longpolling.NotifyMessageArrivingListener;
 import edu.hubu.broker.longpolling.PullRequestHoldService;
+import edu.hubu.broker.offset.ConsumerOffsetManager;
 import edu.hubu.broker.out.BrokerOutAPI;
 import edu.hubu.broker.processor.AdminBrokerProcessor;
 import edu.hubu.broker.processor.ConsumerManagerProcessor;
@@ -65,6 +66,7 @@ public class BrokerController {
     private final SubscriptionGroupManager subscriptionGroupManager;
     private final PullMessageProcessor pullMessageProcessor;
 
+    private final ConsumerOffsetManager consumerOffsetManager;
     private final ConsumerManager consumerManager;
     private final ConsumerFilterManager consumerFilterManager;
 
@@ -84,6 +86,8 @@ public class BrokerController {
         this.nettyClientConfig = nettyClientConfig;
         this.brokerConfig = brokerConfig;
         this.messageStoreConfig = messageStoreConfig;
+
+        this.consumerOffsetManager = new ConsumerOffsetManager(this);
 
         this.subscriptionGroupManager = new SubscriptionGroupManager(this);
         this.brokerOutAPI = new BrokerOutAPI(nettyClientConfig);
@@ -270,6 +274,9 @@ public class BrokerController {
     }
 
 
+    public ConsumerOffsetManager getConsumerOffsetManager() {
+        return consumerOffsetManager;
+    }
 
     public TopicConfigManager getTopicConfigManager() {
         return topicConfigManager;

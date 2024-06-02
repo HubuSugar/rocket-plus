@@ -7,9 +7,12 @@ import edu.hubu.client.exception.MQClientException;
 import edu.hubu.client.impl.consumer.DefaultLitePullConsumerImpl;
 import edu.hubu.client.instance.ClientConfig;
 import edu.hubu.common.consumer.ConsumeFromWhere;
+import edu.hubu.common.message.MessageExt;
 import edu.hubu.common.protocol.heartbeat.MessageModel;
 import edu.hubu.common.topic.NamespaceUtil;
 import edu.hubu.remoting.netty.handler.RpcHook;
+
+import java.util.List;
 
 /**
  * @author: sugar
@@ -39,6 +42,7 @@ public class DefaultLitePullConsumer extends ClientConfig implements LitePullCon
      * 是否以订阅组为单位
      */
     private boolean unitMode = false;
+    private boolean autoCommit = true;
 
     private int pullThreadNums = 20;
     private int pullBatchSize = 10;
@@ -51,6 +55,7 @@ public class DefaultLitePullConsumer extends ClientConfig implements LitePullCon
     private ConsumeFromWhere consumeFromWhere = ConsumeFromWhere.CONSUME_FROM_LAST_OFFSET;
     // the socket timeout
     private long consumerPullTimeoutMillis = 1000 * 10;
+    private long autoCommitIntervalMillis = 5 * 1000;
 
 
     public DefaultLitePullConsumer(final String consumerGroup) {
@@ -83,6 +88,25 @@ public class DefaultLitePullConsumer extends ClientConfig implements LitePullCon
     @Override
     public void subscribe(String topic, MessageSelector messageSelector) {
         this.defaultLitePullConsumerImpl.subscribe(NamespaceUtil.wrapNamespace(this.namespace, topic), messageSelector);
+    }
+
+    @Override
+    public List<MessageExt> poll() {
+        return this.defaultLitePullConsumerImpl.poll(this.getConsumerPullTimeoutMillis());
+    }
+
+    @Override
+    public List<MessageExt> poll(long timeoutMillis) {
+        return this.defaultLitePullConsumerImpl.poll(timeoutMillis);
+    }
+
+    @Override
+    public boolean isAutoCommit() {
+        return autoCommit;
+    }
+
+    public void setAutoCommit(boolean autoCommit) {
+        this.autoCommit = autoCommit;
     }
 
     @Override
@@ -217,5 +241,13 @@ public class DefaultLitePullConsumer extends ClientConfig implements LitePullCon
 
     public void setConsumerPullTimeoutMillis(long consumerPullTimeoutMillis) {
         this.consumerPullTimeoutMillis = consumerPullTimeoutMillis;
+    }
+
+    public long getAutoCommitIntervalMillis() {
+        return autoCommitIntervalMillis;
+    }
+
+    public void setAutoCommitIntervalMillis(long autoCommitIntervalMillis) {
+        this.autoCommitIntervalMillis = autoCommitIntervalMillis;
     }
 }

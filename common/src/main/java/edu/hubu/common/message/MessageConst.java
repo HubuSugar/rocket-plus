@@ -15,4 +15,5 @@ public class MessageConst {
     public static final String PROPERTY_TRACE = "TRACE_ON";
     public static final String PROPERTY_KEYS = "KEYS";
     public static final String PROPERTY_TAGS = "TAGS";
+    public static final String PROPERTY_MAX_OFFSET = "MAX_OFFSET";
 }

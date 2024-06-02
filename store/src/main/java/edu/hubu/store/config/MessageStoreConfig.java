@@ -58,6 +58,7 @@ public class MessageStoreConfig {
     private int maxTransferCountOnMessageInMemory = 32;
     private int maxTransferBytesOnMessageInDisk = 1024 * 64;
     private int maxTransferCountOnMessageInDisk = 8;
+    private boolean offsetCheckInSlave = false;
 
 
     public String getStorePathRootDir() {
@@ -299,5 +300,13 @@ public class MessageStoreConfig {
 
     public void setMaxTransferCountOnMessageInMemory(int maxTransferCountOnMessageInMemory) {
         this.maxTransferCountOnMessageInMemory = maxTransferCountOnMessageInMemory;
+    }
+
+    public boolean isOffsetCheckInSlave() {
+        return offsetCheckInSlave;
+    }
+
+    public void setOffsetCheckInSlave(boolean offsetCheckInSlave) {
+        this.offsetCheckInSlave = offsetCheckInSlave;
     }
 }

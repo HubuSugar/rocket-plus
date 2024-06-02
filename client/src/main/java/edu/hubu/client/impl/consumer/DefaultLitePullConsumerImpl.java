@@ -68,6 +68,9 @@ public class DefaultLitePullConsumerImpl implements MQConsumerInner{
     private long consumeRequestFlowControlTimes = 0L;
     private long queueFlowControlTimes = 0L;
     private long queueMaxSpanFlowControlTimes = 0L;
+    private long nextAutoCommitDeadline = -1;
+
+    private final MessageQueueLock messageQueueLock = new MessageQueueLock();
 
 
     public DefaultLitePullConsumerImpl(DefaultLitePullConsumer defaultLitePullConsumer, RpcHook rpcHook) {
@@ -197,6 +200,78 @@ public class DefaultLitePullConsumerImpl implements MQConsumerInner{
             throw new MQClientException("subscribe exception", e);
         }
 
+    }
+
+    public synchronized List<MessageExt> poll(long timeout) {
+        try {
+            checkServiceState();
+            if(timeout < 0){
+                throw new IllegalArgumentException("timeout must not be negative");
+            }
+            if(defaultLitePullConsumer.isAutoCommit()){
+                maybeAutoCommit();
+            }
+
+            long endTime = System.currentTimeMillis() + timeout;
+            ConsumeRequest consumeRequest = consumeRequestCache.poll(endTime - System.currentTimeMillis(), TimeUnit.MILLISECONDS);
+
+            if(endTime - System.currentTimeMillis() > 0){
+                while(consumeRequest != null && consumeRequest.processQueue.isDropped()){
+                    consumeRequest = consumeRequestCache.poll(endTime - System.currentTimeMillis(), TimeUnit.MILLISECONDS);
+                    if(endTime - System.currentTimeMillis() <= 0){
+                        break;
+                    }
+                }
+            }
+
+            if(consumeRequest != null && !consumeRequest.processQueue.isDropped()){
+                List<MessageExt> messageExts = consumeRequest.messageExts;
+                long offset = consumeRequest.getProcessQueue().removeMessage(messageExts);
+                this.assignedMessageQueue.updateConsumeOffset(consumeRequest.getMessageQueue(), offset);
+                //if namespace is not null, reset topic without namespace
+                this.resetTopic(messageExts);
+                return messageExts;
+            }
+
+        }catch (InterruptedException ignored){
+
+        }
+        return Collections.emptyList();
+    }
+
+    private void resetTopic(List<MessageExt> messageExts) {
+
+    }
+
+    private void maybeAutoCommit() {
+        long now = System.currentTimeMillis();
+        if(now >= nextAutoCommitDeadline){
+            commitAll();
+            nextAutoCommitDeadline = now + defaultLitePullConsumer.getAutoCommitIntervalMillis();
+        }
+    }
+
+    private synchronized void commitAll() {
+        try{
+            for (MessageQueue messageQueue : assignedMessageQueue.getAssignedMessageQueues()) {
+               long consumerOffset = assignedMessageQueue.getConsumerOffset(messageQueue);
+                if(consumerOffset != -1){
+                    ProcessQueue processQueue = assignedMessageQueue.getProcessQueue(messageQueue);
+                    if(processQueue != null && !processQueue.isDropped()){
+                        updateConsumeOffset(messageQueue, consumerOffset);
+                    }
+                }
+            }
+
+        }catch (Exception e){
+            log.error("An error occurred when update consumer offset automatically");
+        }
+
+    }
+
+    public void updateConsumeOffset(MessageQueue messageQueue, long consumerOffset) {
+        this.checkServiceState();
+        this.offsetStore.updateOffset(messageQueue, consumerOffset, false);
     }
 
     private void updateTopicSubscribeInfoWhenSubscriptionChanged() {
@@ -363,7 +438,20 @@ public class DefaultLitePullConsumerImpl implements MQConsumerInner{
                     PullResult pullResult = pull(messageQueue, subscriptionData, offset, defaultLitePullConsumer.getPullBatchSize());
 
                     switch (pullResult.getPullStatus()){
-
+                        case FOUND:
+                            final Object lockObj = DefaultLitePullConsumerImpl.this.messageQueueLock.fetchLockObject(messageQueue);
+                            synchronized (lockObj){
+                                if(pullResult.getMsgFoundList() != null && !pullResult.getMsgFoundList().isEmpty() && DefaultLitePullConsumerImpl.this.assignedMessageQueue.getSeekOffset(messageQueue) != -1){
+                                    processQueue.putMessage(pullResult.getMsgFoundList());
+                                    submitConsumeRequest(new SubmitRequest(pullResult.getMsgFoundList(), messageQueue, processQueue));
+                                }
+                            }
+                            break;
+                        case OFFSET_ILLEGAL:
+                            log.warn("the pull request offset illegal: {}", pullResult.toString());
+                            break;
+                        default:
+                            break;
                     }
                     updatePullOffset(messageQueue, pullResult.getNextBeginOffset());
                 }catch (Exception e){

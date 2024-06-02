@@ -1,5 +1,7 @@
 package edu.hubu.common.utils;
 
+import java.util.concurrent.atomic.AtomicLong;
+
 /**
  * @author: sugar
  * @date: 2023/6/4
@@ -29,5 +31,17 @@ public class MixAll {
 
     public static boolean isSysConsumerGroup(final String consumerGroup) {
         return consumerGroup.startsWith(CID_RMQ_SYS_PREFIX);
+    }
+
+    public static boolean compareAndIncreaseOnly(final AtomicLong target, final long value) {
+        long prev = target.get();
+        while (value > prev){
+            boolean updated = target.compareAndSet(prev, value);
+            if(updated){
+                return true;
+            }
+            prev = target.get();
+        }
+        return false;
     }
 }

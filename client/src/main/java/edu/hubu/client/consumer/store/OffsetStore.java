@@ -15,4 +15,5 @@ public interface OffsetStore {
 
     void removeOffset(MessageQueue mq);
 
+    void updateOffset(MessageQueue messageQueue, long consumerOffset, boolean increaseOnly);
 }

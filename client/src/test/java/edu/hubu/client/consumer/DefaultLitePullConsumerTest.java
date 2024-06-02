@@ -23,5 +23,7 @@ public class DefaultLitePullConsumerTest {
         DefaultLitePullConsumer consumer = new DefaultLitePullConsumer("testConsumer");
         consumer.start();
 
+
+
     }
 }
