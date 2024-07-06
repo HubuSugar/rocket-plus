@@ -1,8 +1,12 @@
 package edu.hubu.client.consumer;
 
 import edu.hubu.client.exception.MQClientException;
+import edu.hubu.common.consumer.ConsumeFromWhere;
+import edu.hubu.common.message.MessageExt;
 import lombok.extern.slf4j.Slf4j;
 import org.junit.Test;
+
+import java.util.List;
 
 /**
  * @author: sugar
@@ -21,8 +25,20 @@ public class DefaultLitePullConsumerTest {
     public void consumeMessage() throws MQClientException {
 
         DefaultLitePullConsumer consumer = new DefaultLitePullConsumer("testConsumer");
+        consumer.setNameServer("127.0.0.1:9877");
+        consumer.setConsumeFromWhere(ConsumeFromWhere.CONSUME_FROM_FIRST_OFFSET);
+        consumer.subscribe("test", "*");
         consumer.start();
 
+        try{
+            while (true){
+                List<MessageExt> poll = consumer.poll();
+                System.out.println(poll);
+            }
+
+        }finally {
+            consumer.shutdown();
+        }
 
 
     }

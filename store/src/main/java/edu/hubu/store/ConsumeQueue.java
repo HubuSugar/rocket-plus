@@ -135,7 +135,7 @@ public class ConsumeQueue {
 
     private boolean putMessagePositionInfo(long offset, int size, long tagsCode, long cqOffset) {
 
-        if(offset + size < maxPhysicOffset){
+        if(offset + size <= maxPhysicOffset){
             log.info("maybe try to build consume queue repeatedly, maxPhysicOffset = {}, offset={}", maxPhysicOffset, offset);
             return true;
         }
@@ -156,7 +156,8 @@ public class ConsumeQueue {
                 this.mappedFileQueue.setCommittedWhere(expectedOffset);
 
                 this.fillPreBlank(mappedFile, expectedOffset);
-                log.info("fill blank space {}, expectOffset {}, wrotePosition {} ", mappedFile.getFileName(), expectedOffset, mappedFile.getWrotePosition());
+                log.info("fill blank space {}, expectOffset {}, wrotePosition {} ", mappedFile.getFileName(),
+                        expectedOffset, mappedFile.getWrotePosition());
             }
 
             if(cqOffset != 0){

@@ -122,6 +122,13 @@ public class AssignedMessageQueue {
         return -1;
     }
 
+    public void updatePullOffset(MessageQueue messageQueue, long nextBeginOffset) {
+        MessageQueueState messageQueueState = this.assignedQueueState.get(messageQueue);
+        if(messageQueueState != null){
+            messageQueueState.setPullOffset(nextBeginOffset);
+        }
+    }
+
 
     static class MessageQueueState {
         private MessageQueue messageQueue;

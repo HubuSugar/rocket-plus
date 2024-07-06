@@ -56,6 +56,7 @@ public class DefaultLitePullConsumer extends ClientConfig implements LitePullCon
     // the socket timeout
     private long consumerPullTimeoutMillis = 1000 * 10;
     private long autoCommitIntervalMillis = 5 * 1000;
+    private long topicMetadataCheckIntervalMillis = 1000 * 30;
 
 
     public DefaultLitePullConsumer(final String consumerGroup) {
@@ -249,5 +250,13 @@ public class DefaultLitePullConsumer extends ClientConfig implements LitePullCon
 
     public void setAutoCommitIntervalMillis(long autoCommitIntervalMillis) {
         this.autoCommitIntervalMillis = autoCommitIntervalMillis;
+    }
+
+    public long getTopicMetadataCheckIntervalMillis() {
+        return topicMetadataCheckIntervalMillis;
+    }
+
+    public void setTopicMetadataCheckIntervalMillis(long topicMetadataCheckIntervalMillis) {
+        this.topicMetadataCheckIntervalMillis = topicMetadataCheckIntervalMillis;
     }
 }

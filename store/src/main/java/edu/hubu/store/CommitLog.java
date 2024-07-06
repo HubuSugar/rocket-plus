@@ -755,7 +755,7 @@ public class CommitLog {
             //5、flag
             this.msgStoreItemMemory.putInt(messageInner.getFlag());
             //6、queueOffset
-            this.msgStoreItemMemory.putLong(messageInner.getQueueId());
+            this.msgStoreItemMemory.putLong(queueOffset);
             //7、physical offset -- wroteOffset
             this.msgStoreItemMemory.putLong(byteBuffer.position() + fileFromOffset);
             //8、sysFlag

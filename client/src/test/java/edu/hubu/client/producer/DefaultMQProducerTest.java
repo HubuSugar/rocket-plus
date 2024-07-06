@@ -24,13 +24,12 @@ public class DefaultMQProducerTest {
 
     @Test
     public void sendMessage() throws RemotingException, InterruptedException, MQClientException, MQBrokerException {
-
         DefaultMQProducer mqProducer = new DefaultMQProducer("test group");
         mqProducer.setNameServer("127.0.0.1:9877");
         mqProducer.start();
         int successCount = 0, failCount = 0;
-        for(int i = 0; i < 1; i++){
-            Message message = new Message("test");
+        for(int i = 1; i < 2; i++){
+            Message message = new Message("TopicTest");
             String body = "the first message, this is my first day to learn rocket mq " + i;
             message.setBody(body.getBytes(StandardCharsets.UTF_8));
             SendResult sendResult = mqProducer.send(message);
@@ -43,6 +42,5 @@ public class DefaultMQProducerTest {
             // log.info("sendResult: {}", sendResult);
         }
         System.out.println("successCount:" + successCount + " failCount:" + failCount);
-
     }
 }

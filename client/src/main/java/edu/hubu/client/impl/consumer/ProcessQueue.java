@@ -73,9 +73,7 @@ public class ProcessQueue {
                             this.msgAccCnt = msgAccCnt;
                         }
                     }
-
                 }
-
             }finally {
                 this.lockTreeMap.writeLock().unlock();
             }
