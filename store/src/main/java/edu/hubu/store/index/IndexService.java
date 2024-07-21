@@ -23,4 +23,8 @@ public class IndexService {
     public void buildIndex(DispatchRequest request){
 
     }
+
+    public void load(boolean lastExitOk) {
+
+    }
 }

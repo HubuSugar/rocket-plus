@@ -24,9 +24,7 @@ import java.io.RandomAccessFile;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileLock;
 import java.nio.charset.StandardCharsets;
-import java.util.Iterator;
-import java.util.LinkedList;
-import java.util.Map;
+import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -132,12 +130,67 @@ public class DefaultMessageStore implements MessageStore {
     public boolean load() {
         boolean result = true;
 
-        result = this.commitLog.load();
+        try{
+            boolean lastExitOk = !isTempFileExist();
+            log.info("last exit {}", lastExitOk ? "abnormal" : "abnormally");
 
-        result = result && this.loadConsumeQueue();
+            result = this.commitLog.load();
 
-        this.storeCheckpoint = new StoreCheckpoint();
+            result = result && this.loadConsumeQueue();
+
+            if(result){
+                this.storeCheckpoint = new StoreCheckpoint();
+
+                this.indexService.load(lastExitOk);
+
+                this.recover(lastExitOk);
+
+                log.info("last over, and the max phy offset = {}", this.getMaxPhyOffset());
+            }
+        }catch (Exception e){
+            log.error("");
+            result = false;
+        }
         return result;
+    }
+
+    private void recover(boolean lastExitOk) {
+         long maxPhyOffsetOfConsumeQueue = this.recoverConsumeQueue();
+
+         if(lastExitOk){
+             this.commitLog.recoverNormally(maxPhyOffsetOfConsumeQueue);
+         }else{
+             this.commitLog.recoverAbnormally(maxPhyOffsetOfConsumeQueue);
+         }
+
+         this.recoverTopicQueueTable();
+    }
+
+    private long recoverConsumeQueue(){
+        long maxPhyOffset = -1;
+        for (ConcurrentHashMap<Integer, ConsumeQueue> maps : this.consumeQueueTable.values()) {
+            for (ConsumeQueue logic : maps.values()) {
+                logic.recover();
+                if(logic.getMaxPhysicOffset() > maxPhyOffset){
+                    maxPhyOffset = logic.getMaxPhysicOffset();
+                }
+            }
+        }
+        return maxPhyOffset;
+    }
+
+    private void recoverTopicQueueTable(){
+        //<topic-queueId, offset>
+        HashMap<String, Long> table = new HashMap<String, Long>(1024);
+        long minPhyOffset = this.commitLog.getMinOffset();
+        for (ConcurrentHashMap<Integer, ConsumeQueue> maps : this.consumeQueueTable.values()) {
+            for (ConsumeQueue cq : maps.values()) {
+                String key = cq.getTopic() + "-" + cq.getQueueId();
+                table.put(key, cq.getMaxOffsetInQueue());
+                cq.correctMinOffset(minPhyOffset);
+            }
+        }
+        this.commitLog.setTopicQueueTable(table);
     }
 
     //broker controller start()中启动
@@ -217,6 +270,16 @@ public class DefaultMessageStore implements MessageStore {
         return true;
     }
 
+    private boolean isTempFileExist(){
+        String abortFile = StorePathConfigHelper.getAbortFile(messageStoreConfig.getStorePathRootDir());
+        File file = new File(abortFile);
+        return file.exists();
+    }
+
+    @Override
+    public long getMaxPhyOffset(){
+        return this.commitLog.getMaxOffset();
+    }
 
     @Override
     public CompletableFuture<PutMessageResult> asyncPutMessage(MessageExtBrokerInner message) {
@@ -593,6 +656,25 @@ public class DefaultMessageStore implements MessageStore {
 
     public ScheduleMessageService getScheduleMessageService() {
         return scheduleMessageService;
+    }
+
+    public void truncateDirtyLogicFiles(long processOffset) {
+        ConcurrentHashMap<String, ConcurrentHashMap<Integer, ConsumeQueue>> consumeQueueTable = this.consumeQueueTable;
+
+        for (ConcurrentHashMap<Integer, ConsumeQueue> map : consumeQueueTable.values()) {
+            for (ConsumeQueue consumeQueue : map.values()) {
+                consumeQueue.truncateDirtyLogicFiles(processOffset);
+            }
+
+        }
+    }
+
+    public void destroyLogicFiles() {
+        for (ConcurrentHashMap<Integer, ConsumeQueue> value : this.consumeQueueTable.values()) {
+            for (ConsumeQueue logic : value.values()) {
+                logic.destroy();
+            }
+        }
     }
 
     /**

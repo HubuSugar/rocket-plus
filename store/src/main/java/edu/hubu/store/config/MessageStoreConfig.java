@@ -59,6 +59,7 @@ public class MessageStoreConfig {
     private int maxTransferBytesOnMessageInDisk = 1024 * 64;
     private int maxTransferCountOnMessageInDisk = 8;
     private boolean offsetCheckInSlave = false;
+    private boolean checkCRCOnRecover = true;
 
 
     public String getStorePathRootDir() {
@@ -308,5 +309,13 @@ public class MessageStoreConfig {
 
     public void setOffsetCheckInSlave(boolean offsetCheckInSlave) {
         this.offsetCheckInSlave = offsetCheckInSlave;
+    }
+
+    public boolean isCheckCRCOnRecover() {
+        return checkCRCOnRecover;
+    }
+
+    public void setCheckCRCOnRecover(boolean checkCRCOnRecover) {
+        this.checkCRCOnRecover = checkCRCOnRecover;
     }
 }

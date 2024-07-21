@@ -5,7 +5,10 @@ import lombok.extern.slf4j.Slf4j;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Iterator;
+import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
 
 /**
@@ -252,6 +255,73 @@ public class MappedFileQueue {
         return -1;
     }
 
+    public void truncateDirtyFiles(long processOffset) {
+        List<MappedFile> willRemoveFiles = new ArrayList<>();
+        for (MappedFile mappedFile : this.mappedFiles) {
+            long fileTailOffset = mappedFile.getFileFromOffset() + this.mappedFileSize;
+            if(fileTailOffset > processOffset){
+                if(processOffset >= mappedFile.getFileFromOffset()){
+                    mappedFile.setWrotePosition((int) (processOffset % this.mappedFileSize));
+                    mappedFile.setFlushedPosition((int) (processOffset % this.mappedFileSize));
+                    mappedFile.setCommittedPosition((int) (processOffset % this.mappedFileSize));
+                }else{
+                    mappedFile.destroy(1000);
+                    willRemoveFiles.add(mappedFile);
+                }
+
+            }
+        }
+        this.deleteExpiredFiles(willRemoveFiles);
+    }
+
+    private void deleteExpiredFiles(List<MappedFile> willRemoveFiles) {
+        if(!willRemoveFiles.isEmpty()){
+            Iterator<MappedFile> iterator = willRemoveFiles.iterator();
+            while (iterator.hasNext()){
+                MappedFile cur = iterator.next();
+                if(!this.mappedFiles.contains(cur)){
+                   iterator.remove();
+                   log.info("the mapped file {} not included in the mappedFiles， ignore it", cur.getFileName());
+                }
+
+            }
+
+            try{
+                if(!mappedFiles.removeAll(willRemoveFiles)){
+                   log.error("delete expire files failed");
+                }
+            }catch (Exception e){
+                log.error("delete expire files has exception.", e);
+            }
+
+
+        }
+    }
+
+    public void destroy() {
+        for (MappedFile mf : this.mappedFiles) {
+            mf.destroy(1000 * 3);
+        }
+
+        this.mappedFiles.clear();
+        this.flushedWhere = 0;
+
+        File file = new File(this.storePath);
+        if(file.isDirectory()){
+            file.delete();
+        }
+    }
+
+    public void deleteLastMappedFile() {
+        MappedFile lastMappedFile = getLastMappedFile();
+        if(lastMappedFile != null){
+            lastMappedFile.destroy(1000);
+            this.mappedFiles.remove(lastMappedFile);
+            log.info("on recover, destroy a logic mapped file, {}", lastMappedFile.getFileName());
+        }
+
+    }
+
     public long getFlushedWhere() {
         return flushedWhere;
     }
@@ -278,6 +348,10 @@ public class MappedFileQueue {
 
     public int getMappedFileSize() {
         return mappedFileSize;
+    }
+
+    public CopyOnWriteArrayList<MappedFile> getMappedFiles() {
+        return mappedFiles;
     }
 
 }

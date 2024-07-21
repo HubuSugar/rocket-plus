@@ -5,6 +5,7 @@ import com.sun.jna.Pointer;
 import edu.hubu.common.message.MessageExt;
 import edu.hubu.common.message.MessageExtBatch;
 import edu.hubu.common.message.MessageExtBrokerInner;
+import edu.hubu.common.utils.UtilAll;
 import edu.hubu.store.config.FlushDiskType;
 import edu.hubu.store.util.LibC;
 import lombok.extern.slf4j.Slf4j;
@@ -70,7 +71,7 @@ public class MappedFile extends ReferenceResource{
     }
 
     @Override
-    public boolean cleanup(int refCount) {
+    public boolean cleanup(long refCount) {
         if(this.isAvailable()){
             return false;
         }
@@ -488,6 +489,33 @@ public class MappedFile extends ReferenceResource{
 
     public void setFileName(String fileName) {
         this.fileName = fileName;
+    }
+
+    public ByteBuffer sliceByteBuffer() {
+        return this.mappedByteBuffer.slice();
+    }
+
+    public boolean destroy(int intervalForcibly) {
+        this.shutdown(intervalForcibly);
+
+        if(isCleanupOver()){
+            try{
+                this.fileChannel.close();
+                log.info("close file channel" + fileName + "OK");
+                long begin = System.currentTimeMillis();
+                boolean deleted = this.file.delete();
+                log.info("deleted file REF={}, filename = {}, {}, W = {}, M = {}, cost = {}ms", this.getRefCount(), fileName,  deleted ? "OK" : "Fail",
+                        this.getWrotePosition(), this.getWrotePosition(), UtilAll.computeElapsedTimeMillis(begin));
+            } catch (Exception e) {
+                log.info("close file channel {} fail", this.fileName, e);
+            }
+
+            return true;
+        }else{
+            log.warn("destroy the mapped file[REF={}] filename={} failed, this.cleanOver={}", getRefCount(), this.fileName, this.cleanupOver);
+        }
+        return false;
+
     }
 
 }

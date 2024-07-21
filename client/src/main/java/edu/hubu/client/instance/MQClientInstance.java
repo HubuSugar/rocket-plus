@@ -416,6 +416,7 @@ public class MQClientInstance {
 
     public void sendHeartbeatToAllBrokerWithLock() {
 
+
     }
 
     public FindBrokerResult findBrokerAddressInSubscribe(String brokerName, long brokerId, boolean onlyThisBroker) {

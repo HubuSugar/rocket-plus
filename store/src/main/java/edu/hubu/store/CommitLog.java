@@ -11,6 +11,7 @@ import edu.hubu.store.lock.PutMessageLock;
 import edu.hubu.store.lock.PutMessageReentrantLock;
 import edu.hubu.store.lock.PutMessageSpinLock;
 import lombok.extern.slf4j.Slf4j;
+import sun.security.krb5.internal.APRep;
 
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
@@ -19,6 +20,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CopyOnWriteArrayList;
 
 /**
  * @author: sugar
@@ -73,7 +75,9 @@ public class CommitLog {
     }
 
     public boolean load() {
-        return true;
+        boolean result = this.mappedFileQueue.load();
+        log.info("load commit log {}", result ? "ok" : "failed");
+        return result;
     }
 
     public void start() {
@@ -283,9 +287,75 @@ public class CommitLog {
         return null;
     }
 
+    public void recoverNormally(long maxPhyOffsetOfConsumeQueue) {
+        boolean checkCRCOnRecover = this.messageStore.getMessageStoreConfig().isCheckCRCOnRecover();
+        final List<MappedFile> mappedFiles = this.mappedFileQueue.getMappedFiles();
+        if(!mappedFiles.isEmpty()){
+            //began to recover from the last three files
+            int index = mappedFiles.size() - 3;
+            if(index < 0){
+                index = 0;
+            }
+            MappedFile mappedFile = mappedFiles.get(index);
+            ByteBuffer byteBuffer = mappedFile.sliceByteBuffer();
+            long processOffset = mappedFile.getFileFromOffset();
+            long mappedFileOffset = 0;
+            while(true){
+                DispatchRequest request = this.checkMessageAndReturnSize(byteBuffer, checkCRCOnRecover);
+                int msgSize = request.getMsgSize();
+                //normal data
+                if(request.isSuccess() && msgSize > 0){
+                    mappedFileOffset += msgSize;
+                }else if(request.isSuccess() && msgSize == 0){
+                    /*
+                    came the end of file, switch to the next file since return 0 representatives
+                    met last hole, this can not be included in truncate offset
+                     */
+                    index++;
+                    if(index >= mappedFiles.size()){
+                        //current branch not happen
+                        log.info("recover the last 3 physical file over, last mapped file = {}", mappedFile.getFileName());
+                        break;
+                    }else{
+                        mappedFile = mappedFiles.get(index);
+                        byteBuffer = mappedFile.sliceByteBuffer();
+                        processOffset = mappedFile.getFileFromOffset();
+                        mappedFileOffset = 0;
+                        log.info("recover next mapped file, {}", mappedFile.getFileName());
+                    }
+                }else if(!request.isSuccess()){  //intermediate file read error
+                    log.info("recover physical file end, {}", mappedFile.getFileName());
+                    break;
+                }
+            }
+
+            processOffset += mappedFileOffset;
+
+            this.mappedFileQueue.setFlushedWhere(processOffset);
+            this.mappedFileQueue.setCommittedWhere(processOffset);
+            this.mappedFileQueue.truncateDirtyFiles(processOffset);
+
+            if(maxPhyOffsetOfConsumeQueue >= processOffset){
+                log.warn("maxPhyOffsetOfConsumeQueue {}, greater than processOffset {},truncate dirty log files", maxPhyOffsetOfConsumeQueue, processOffset);
+                this.messageStore.truncateDirtyLogicFiles(processOffset);
+            }
+        }else {
+            //commit log are deleted
+            log.info("the commit log file are deleted, delete logic files");
+            this.mappedFileQueue.setFlushedWhere(0);
+            this.mappedFileQueue.setCommittedWhere(0);
+            this.messageStore.destroyLogicFiles();
+        }
+
+    }
+
     public long rollNextFile(long offset){
         int mappedFileSize = this.messageStore.getMessageStoreConfig().getMappedFileSizeCommitlog();
         return offset + mappedFileSize - offset % mappedFileSize;
+    }
+
+    public DispatchRequest checkMessageAndReturnSize(ByteBuffer byteBuffer, boolean checkCRC){
+        return this.checkMessageAndReturnSize(byteBuffer, checkCRC, true);
     }
 
     /**
@@ -444,6 +514,14 @@ public class CommitLog {
         }
 
         return null;
+    }
+
+    public void recoverAbnormally(long maxPhyOffsetOfConsumeQueue) {
+
+    }
+
+    public void setTopicQueueTable(HashMap<String, Long> table) {
+        this.topicQueueOffsetTable = table;
     }
 
 

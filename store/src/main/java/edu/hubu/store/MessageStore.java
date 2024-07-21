@@ -18,6 +18,8 @@ public interface MessageStore {
 
     void start() throws Exception;
 
+    long getMaxPhyOffset();
+
     default CompletableFuture<PutMessageResult> asyncPutMessage(final MessageExtBrokerInner message){
         return CompletableFuture.completedFuture(putMessage(message));
     }

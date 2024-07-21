@@ -29,4 +29,7 @@ public class UtilAll {
         return new String(hexString);
     }
 
+    public static long computeElapsedTimeMillis(long beginTime){
+        return System.currentTimeMillis() - beginTime;
+    }
 }

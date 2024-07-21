@@ -27,7 +27,7 @@ public class DefaultLitePullConsumerTest {
         DefaultLitePullConsumer consumer = new DefaultLitePullConsumer("testConsumer");
         consumer.setNameServer("127.0.0.1:9877");
         consumer.setConsumeFromWhere(ConsumeFromWhere.CONSUME_FROM_FIRST_OFFSET);
-        consumer.subscribe("test", "*");
+        consumer.subscribe("TopicTest", "*");
         consumer.start();
 
         try{

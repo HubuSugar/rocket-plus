@@ -20,4 +20,8 @@ public class StorePathConfigHelper {
     public static String getStorePathConsumeQueueExt(final String rootPath){
         return rootPath + File.separator + "consumequeue_ext";
     }
+
+    public static String getAbortFile(String rootPath) {
+        return rootPath + File.separator + "abort";
+    }
 }

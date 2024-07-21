@@ -52,6 +52,22 @@ public class ConsumeQueueExt {
         return 1;
     }
 
+    public void recover() {
+
+    }
+
+    public void truncateByMaxAddress(long maxExtAddr) {
+
+    }
+
+    public void destroy() {
+
+    }
+
+    public void truncateByMinAddress(long minExtAddr) {
+
+    }
+
 
     public static class CqUnitExt{
         // size + msg time + tag code + bitmap size
