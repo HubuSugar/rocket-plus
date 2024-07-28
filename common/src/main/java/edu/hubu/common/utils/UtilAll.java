@@ -2,6 +2,7 @@ package edu.hubu.common.utils;
 
 import java.nio.charset.StandardCharsets;
 import java.text.NumberFormat;
+import java.util.zip.CRC32;
 
 /**
  * @author: sugar
@@ -31,5 +32,18 @@ public class UtilAll {
 
     public static long computeElapsedTimeMillis(long beginTime){
         return System.currentTimeMillis() - beginTime;
+    }
+
+    public static int crc32(byte[] body){
+        if(body != null){
+            return crc32(body, 0, body.length);
+        }
+        return 0;
+    }
+
+    public static int crc32(byte[] body, int offset, int len){
+        CRC32 crc32 = new CRC32();
+        crc32.update(body, offset, len);
+        return (int) (crc32.getValue() & 0x7FFFFFFF);
     }
 }

@@ -4,6 +4,7 @@ import edu.hubu.common.ServiceThread;
 import edu.hubu.common.message.*;
 import edu.hubu.common.sysFlag.MessageSysFlag;
 import edu.hubu.common.topic.TopicValidator;
+import edu.hubu.common.utils.UtilAll;
 import edu.hubu.store.config.BrokerRole;
 import edu.hubu.store.config.FlushDiskType;
 import edu.hubu.store.consumeQueue.DispatchRequest;
@@ -101,7 +102,7 @@ public class CommitLog {
         //设置消息的存储时间
         messageInner.setStoreTimestamp(System.currentTimeMillis());
         //设置body CRC mock
-        messageInner.setBodyCRC(716);
+        messageInner.setBodyCRC(UtilAll.crc32(messageInner.getBody()));
 
         //追加到commitLog
         AppendMessageResult result;
@@ -346,7 +347,6 @@ public class CommitLog {
             this.mappedFileQueue.setCommittedWhere(0);
             this.messageStore.destroyLogicFiles();
         }
-
     }
 
     public long rollNextFile(long offset){
@@ -417,6 +417,10 @@ public class CommitLog {
                     if(checkCRC){
                         //todo checkCRC
                         //return new DispatchRequest(-1, false);
+                        int crc = UtilAll.crc32(content, 0, bodyLen);
+                        if(crc != bodyCRC){
+                            return new DispatchRequest(-1, false);
+                        }
                     }
                 }else {
                     byteBuffer.position(byteBuffer.position() + bodyLen);

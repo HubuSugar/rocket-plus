@@ -7,6 +7,8 @@ package edu.hubu.common.protocol.request;
  */
 public class RequestCode {
 
+    public static final int HEART_BEAT = 34;
+
     public static final int GET_MAX_OFFSET = 30;
     public static final int GET_CONSUMER_LIST_BY_GROUP = 38;
 

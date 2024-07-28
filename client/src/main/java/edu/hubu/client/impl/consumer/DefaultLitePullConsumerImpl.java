@@ -12,11 +12,13 @@ import edu.hubu.client.impl.rebalance.RebalanceLitePullImpl;
 import edu.hubu.client.instance.MQClientInstance;
 import edu.hubu.client.instance.MQClientManager;
 import edu.hubu.common.ServiceState;
+import edu.hubu.common.consumer.ConsumeFromWhere;
 import edu.hubu.common.exception.broker.MQBrokerException;
 import edu.hubu.common.filter.ExpressionType;
 import edu.hubu.common.filter.FilterAPI;
 import edu.hubu.common.message.MessageExt;
 import edu.hubu.common.message.MessageQueue;
+import edu.hubu.common.protocol.heartbeat.ConsumeType;
 import edu.hubu.common.protocol.heartbeat.MessageModel;
 import edu.hubu.common.protocol.heartbeat.SubscriptionData;
 import edu.hubu.common.sysFlag.PullSysFlag;
@@ -376,7 +378,32 @@ public class DefaultLitePullConsumerImpl implements MQConsumerInner{
             }
         }
     }
-    
+
+    @Override
+    public String groupName() {
+        return this.defaultLitePullConsumer.getConsumerGroup();
+    }
+
+    @Override
+    public MessageModel messageModel() {
+        return this.defaultLitePullConsumer.getMessageModel();
+    }
+
+    @Override
+    public ConsumeType consumeType() {
+        return ConsumeType.CONSUME_ACTIVELY;
+    }
+
+    @Override
+    public ConsumeFromWhere consumeFromWhere() {
+        return ConsumeFromWhere.CONSUME_FROM_LAST_OFFSET;
+    }
+
+    @Override
+    public Set<SubscriptionData> subscriptions() {
+        return new HashSet<>(this.rebalanceImpl.getSubscriptionInner().values());
+    }
+
     class MessageQueueListenerImpl implements MessageQueueListener{
         @Override
         public void messageQueueChanged(String topic, Set<MessageQueue> mqAll, Set<MessageQueue> mqDivided) {

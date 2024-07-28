@@ -11,6 +11,9 @@ import edu.hubu.client.impl.rebalance.RebalanceService;
 import edu.hubu.client.producer.DefaultMQProducer;
 import edu.hubu.client.producer.MQProducerInner;
 import edu.hubu.common.PermName;
+import edu.hubu.common.protocol.heartbeat.ConsumerData;
+import edu.hubu.common.protocol.heartbeat.HeartbeatData;
+import edu.hubu.common.protocol.heartbeat.ProducerData;
 import edu.hubu.remoting.netty.exception.RemotingException;
 import edu.hubu.common.message.MessageQueue;
 import edu.hubu.common.protocol.route.BrokerData;
@@ -22,6 +25,7 @@ import lombok.extern.slf4j.Slf4j;
 
 import java.util.*;
 import java.util.concurrent.*;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 
@@ -38,6 +42,7 @@ public class MQClientInstance {
     private final MQClientAPIImpl mqClientAPI;
     private final MQAdminImpl mqAdminImpl;
     private final NettyClientConfig nettyClientConfig;
+    private final Lock heartBeat = new ReentrantLock();
 
     //<group, producer>
     private final ConcurrentMap<String, MQProducerInner> producerTable = new ConcurrentHashMap<>();
@@ -48,6 +53,8 @@ public class MQClientInstance {
     private final ConcurrentMap<String, TopicRouteData> topicRouteTable = new ConcurrentHashMap<>();
     //<brokerName, brokerId, brokerAddress>
     private final ConcurrentMap<String, HashMap<Long, String>> brokerAddrTable = new ConcurrentHashMap<>();
+    //<BrokerName, brokerAddr, version>
+    private final ConcurrentMap<String, HashMap<String, Integer>> brokerVersionTable = new ConcurrentHashMap<>();
     private final Lock nameSrvLock = new ReentrantLock();
 
     //用于启动时执行定时任务
@@ -61,6 +68,8 @@ public class MQClientInstance {
     private final PullMessageService pullMessageService;
 
     private final RebalanceService rebalanceService;
+
+    private final AtomicLong sendHeartbeatTimesTotal = new AtomicLong(0);
 
     public MQClientInstance(ClientConfig clientConfig, int instanceIndex, String clientId) {
         this.clientConfig = clientConfig;
@@ -415,8 +424,127 @@ public class MQClientInstance {
     }
 
     public void sendHeartbeatToAllBrokerWithLock() {
+        if(this.heartBeat.tryLock()){
+            try{
+                this.sendHeartbeatToAllBroker();
+                this.updateFilterClassSource();
+            }catch (Exception e){
+                log.error("send heart beat exception", e);
+            }finally {
+                heartBeat.unlock();
+            }
+        }else{
+            log.warn("lock heart bear failed");
+        }
+    }
 
+    private void updateFilterClassSource() {
 
+    }
+
+    private void sendHeartbeatToAllBroker() {
+       final HeartbeatData heartbeatData = this.prepareHeartbeatData();
+       final boolean producerDataEmpty = heartbeatData.getProduceData().isEmpty();
+       final boolean consumerDataEmpty = heartbeatData.getConsumeData().isEmpty();
+       if(producerDataEmpty && consumerDataEmpty){
+           log.info("send heart beat but no consumer and no producer");
+           return;
+       }
+
+       if(!this.brokerAddrTable.isEmpty()){
+           long times = this.sendHeartbeatTimesTotal.getAndIncrement();
+           Iterator<Map.Entry<String, HashMap<Long, String>>> it = this.brokerAddrTable.entrySet().iterator();
+            while (it.hasNext()){
+                Map.Entry<String, HashMap<Long, String>> entry = it.next();
+                String brokerName = entry.getKey();
+                HashMap<Long, String> oneTable = entry.getValue();
+                if(oneTable != null){
+                    for (Map.Entry<Long, String> brokerEntry : oneTable.entrySet()) {
+                        Long brokerId = brokerEntry.getKey();
+                        String brokerAddr = brokerEntry.getValue();
+                        if(brokerAddr != null){
+                            if(consumerDataEmpty){
+                                if(brokerId != MixAll.MASTER_ID){
+                                    continue;
+                                }
+
+                                try{
+                                    int version = this.mqClientAPI.sendHeartbeat(brokerAddr, heartbeatData, 3000);
+                                    if(!this.brokerVersionTable.containsKey(brokerName)){
+                                        this.brokerVersionTable.put(brokerName, new HashMap<>(4));
+                                    }
+
+                                    this.brokerVersionTable.get(brokerName).put(brokerAddr, version);
+
+                                    if(times % 20 == 0){
+                                        log.info("send heart beat to broker [{}, {}, {}]", brokerName, brokerId, brokerAddr);
+                                        log.info(heartbeatData.toString());
+                                    }
+                                }catch (Exception e){
+                                    if(this.isBrokerInNameServer(brokerAddr)){
+                                        log.info("send heart beat to broker[{},{},{}] failed", brokerName, brokerId, brokerAddr, e);
+                                    }else{
+                                        log.info("send heart beat to broker[{},{},{}] exception", brokerName, brokerId, brokerAddr, e);
+                                    }
+                                }
+                            }
+
+                        }
+                    }
+                }
+            }
+
+       }
+    }
+
+    private boolean isBrokerInNameServer(final String brokerAddr) {
+        Iterator<Map.Entry<String, TopicRouteData>> iterator = this.topicRouteTable.entrySet().iterator();
+        while (iterator.hasNext()) {
+            Map.Entry<String, TopicRouteData> next = iterator.next();
+            List<BrokerData> brokerDatas = next.getValue().getBrokerData();
+            for (BrokerData brokerData : brokerDatas) {
+                boolean contain = brokerData.getBrokerAddrTable().containsValue(brokerAddr);
+                if(contain){
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    private HeartbeatData prepareHeartbeatData() {
+        final HeartbeatData heartbeatData = new HeartbeatData();
+        //clientId
+        heartbeatData.setClientId(this.clientId);
+
+        //producerData
+        for (Map.Entry<String, MQProducerInner> entry : this.producerTable.entrySet()) {
+            MQProducerInner impl = entry.getValue();
+            if(impl != null){
+                ProducerData producerData = new ProducerData();
+                producerData.setGroupName(entry.getKey());
+
+                heartbeatData.getProduceData().add(producerData);
+            }
+        }
+
+        //consumerData
+        for (Map.Entry<String, MQConsumerInner> entry : this.consumerTable.entrySet()) {
+            MQConsumerInner impl = entry.getValue();
+            if(impl != null){
+                ConsumerData consumerData = new ConsumerData();
+                consumerData.setGroupName(impl.groupName());
+                consumerData.setConsumerType(impl.consumeType());
+                consumerData.setMessageModel(impl.messageModel());
+                consumerData.setConsumeFromWhere(impl.consumeFromWhere());
+                consumerData.setSubscriptionData(impl.subscriptions());
+                consumerData.setUnitMode(impl.isUnitMode());
+
+                heartbeatData.getConsumeData().add(consumerData);
+            }
+        }
+
+        return heartbeatData;
     }
 
     public FindBrokerResult findBrokerAddressInSubscribe(String brokerName, long brokerId, boolean onlyThisBroker) {

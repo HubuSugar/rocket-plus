@@ -13,9 +13,12 @@ public class MixAll {
     public static final long MASTER_ID = 0L;
     public static final String DEFAULT_TRACE_REGION = "DefaultRegion";
 
-    public static final String RETRY_GROUP_TOPIC_PREFIX = "%RETRY_TOPIC%";
+    public static final String RETRY_GROUP_TOPIC_PREFIX = "%RETRY%";
     public static final String CID_RMQ_SYS_PREFIX = "CIS_RMQ_SYS_";
 
+    public static String getRetryTopic(final String groupName) {
+        return RETRY_GROUP_TOPIC_PREFIX + groupName;
+    }
 
     public static String brokerVipChannel(boolean vipChannelEnable, String brokerAddr) {
         if(vipChannelEnable){

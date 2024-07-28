@@ -158,4 +158,47 @@ public class TopicConfigManager extends ConfigManager {
 
         return config;
     }
+
+    public TopicConfig createTopicInSendMessageBackMethod(String newTopic, int defaultClientQueueNums, int permission, int sysFlag) {
+        TopicConfig topicConfig = this.topicConfigTable.get(newTopic);
+        if(topicConfig != null){
+            return topicConfig;
+        }
+        boolean createNew = false;
+        try{
+            if (this.topicConfigLock.tryLock(LOCK_TIMEOUT_MILLIS, TimeUnit.MILLISECONDS)) {
+                try{
+                    topicConfig = this.topicConfigTable.get(newTopic);
+                    if (topicConfig != null){
+                        return topicConfig;
+                    }
+                    topicConfig = new TopicConfig();
+                    topicConfig.setReadQueueNums(defaultClientQueueNums);
+                    topicConfig.setWriteQueueNums(defaultClientQueueNums);
+                    topicConfig.setPerm(permission);
+                    topicConfig.setTopicSysFlag(sysFlag);
+
+                    log.info("create new topic: {}", topicConfig);
+                    this.topicConfigTable.put(newTopic, topicConfig);
+                    createNew = true;
+                    this.dataVersion.nextVersion();
+                    this.persist();
+
+                }finally {
+                    this.topicConfigLock.unlock();
+                }
+
+                if(createNew){
+
+                }
+            }
+        }catch (InterruptedException e){
+            log.error("create new topic in send message back exception", e);
+        }
+
+        if(createNew){
+            this.brokerController.registerAllBroker(false, true, true);
+        }
+        return topicConfig;
+    }
 }

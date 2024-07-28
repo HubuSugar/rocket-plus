@@ -46,6 +46,11 @@ public class BrokerConfig {
     private boolean longPollingEnable = true;
     private int consumerManageThreadNums = 8;
     private int adminBrokerThreadNums = 8;
+
+    private int heartbeatThreadQueueCapacity = 10000;
+    private int heartbeatThreadNums = Math.min(32, Runtime.getRuntime().availableProcessors());
+
+
     private boolean autoCreateSubscriptionGroup = true;
     private boolean enablePropertyFilter = false;
     //重试时是否支持消息过滤
@@ -53,7 +58,6 @@ public class BrokerConfig {
     private boolean slaveReadEnable = false;
     private boolean transferMsgByHeap = true;
     private long shortPollingTimeMillis = 1000;
-
 
     public static String localHostname(){
         try {
@@ -280,5 +284,21 @@ public class BrokerConfig {
 
     public void setShortPollingTimeMillis(long shortPollingTimeMillis) {
         this.shortPollingTimeMillis = shortPollingTimeMillis;
+    }
+
+    public int getHeartbeatThreadNums() {
+        return heartbeatThreadNums;
+    }
+
+    public void setHeartbeatThreadNums(int heartbeatThreadNums) {
+        this.heartbeatThreadNums = heartbeatThreadNums;
+    }
+
+    public int getHeartbeatThreadQueueCapacity() {
+        return heartbeatThreadQueueCapacity;
+    }
+
+    public void setHeartbeatThreadQueueCapacity(int heartbeatThreadQueueCapacity) {
+        this.heartbeatThreadQueueCapacity = heartbeatThreadQueueCapacity;
     }
 }

@@ -1,6 +1,9 @@
 package edu.hubu.broker.starter;
 
+import edu.hubu.broker.client.ConsumerIdsChangeListener;
 import edu.hubu.broker.client.ConsumerManager;
+import edu.hubu.broker.client.DefaultConsumerIdsChangeListener;
+import edu.hubu.broker.client.ProducerManager;
 import edu.hubu.broker.client.rebalance.RebalanceLockManager;
 import edu.hubu.broker.filter.ConsumerFilterManager;
 import edu.hubu.broker.filtersrv.FilterServerManager;
@@ -8,10 +11,7 @@ import edu.hubu.broker.longpolling.NotifyMessageArrivingListener;
 import edu.hubu.broker.longpolling.PullRequestHoldService;
 import edu.hubu.broker.offset.ConsumerOffsetManager;
 import edu.hubu.broker.out.BrokerOutAPI;
-import edu.hubu.broker.processor.AdminBrokerProcessor;
-import edu.hubu.broker.processor.ConsumerManagerProcessor;
-import edu.hubu.broker.processor.PullMessageProcessor;
-import edu.hubu.broker.processor.SendMessageProcessor;
+import edu.hubu.broker.processor.*;
 import edu.hubu.broker.subscription.SubscriptionGroupManager;
 import edu.hubu.broker.topic.TopicConfigManager;
 import edu.hubu.common.BrokerConfig;
@@ -49,10 +49,12 @@ public class BrokerController {
 
     private final BlockingQueue<Runnable> sendMessageThreadQueue;
     private final BlockingQueue<Runnable> pullMessageThreadQueue;
+    private final BlockingQueue<Runnable> heartbeatThreadQueue;
     private ExecutorService sendMessageThreadExecutor;
     private ExecutorService pullMessageExecutor;
     private ExecutorService consumerManagerExecutor;
     private ExecutorService adminBrokerExecutor;
+    private ExecutorService heartbeatExecutor;
 
     private final RebalanceLockManager rebalanceLockManager = new RebalanceLockManager();
     private final BrokerOutAPI brokerOutAPI;
@@ -69,6 +71,10 @@ public class BrokerController {
     private final ConsumerOffsetManager consumerOffsetManager;
     private final ConsumerManager consumerManager;
     private final ConsumerFilterManager consumerFilterManager;
+
+    private final ConsumerIdsChangeListener consumerIdsChangeListener;
+
+    private final ProducerManager producerManager;
 
 
     private final ScheduledExecutorService scheduledExecutorService = Executors.newSingleThreadScheduledExecutor(new ThreadFactory() {
@@ -95,15 +101,19 @@ public class BrokerController {
 
         this.sendMessageThreadQueue = new LinkedBlockingQueue<>(brokerConfig.getSendMessageQueueCapacity());
         this.pullMessageThreadQueue = new LinkedBlockingQueue<>(brokerConfig.getPullThreadQueueCapacity());
-
+        this.heartbeatThreadQueue = new LinkedBlockingQueue<>(brokerConfig.getHeartbeatThreadQueueCapacity());
 
         this.topicConfigManager = new TopicConfigManager(this);
         this.filterServerManager = new FilterServerManager(this);
 
         this.pullHoldService = new PullRequestHoldService(this);
         this.messageArrivingListener = new NotifyMessageArrivingListener(this.pullHoldService);
-        this.consumerManager = new ConsumerManager();
+
+        this.consumerIdsChangeListener = new DefaultConsumerIdsChangeListener(this);
+        this.consumerManager = new ConsumerManager(this.consumerIdsChangeListener);
         this.consumerFilterManager = new ConsumerFilterManager(this);
+
+        this.producerManager = new ProducerManager();
 
         this.pullMessageProcessor = new PullMessageProcessor(this);
     }
@@ -148,6 +158,19 @@ public class BrokerController {
                     return new Thread(r, "adminBrokerThreadExecutor");
                 }
             });
+            this.heartbeatExecutor = new ThreadPoolExecutor(
+                    this.brokerConfig.getHeartbeatThreadNums(),
+                    this.brokerConfig.getHeartbeatThreadNums(),
+                    1000 * 60,
+                    TimeUnit.MILLISECONDS,
+                    this.heartbeatThreadQueue,
+                    new ThreadFactory() {
+                        @Override
+                        public Thread newThread(Runnable r) {
+                            return new Thread(r, "heartbeatThreadExecutor");
+                        }
+                    }
+            );
 
 
             //初始化注册processor
@@ -199,6 +222,10 @@ public class BrokerController {
 
         //拉取消息pullMessageProcessor
         this.nettyRemotingServer.registerProcessor(RequestCode.PULL_MESSAGE, this.pullMessageProcessor, this.pullMessageExecutor);
+
+        //producer、consumer客户端管理processor
+        ClientManageProcessor clientManageProcessor = new ClientManageProcessor(this);
+        this.nettyRemotingServer.registerProcessor(RequestCode.HEART_BEAT, clientManageProcessor, this.heartbeatExecutor);
 
         //消费者管理processor
         ConsumerManagerProcessor consumerProcessor = new ConsumerManagerProcessor(this);
@@ -308,6 +335,10 @@ public class BrokerController {
 
     public ConsumerManager getConsumerManager() {
         return consumerManager;
+    }
+
+    public ProducerManager getProducerManager() {
+        return producerManager;
     }
 
     public SubscriptionGroupManager getSubscriptionGroupManager() {

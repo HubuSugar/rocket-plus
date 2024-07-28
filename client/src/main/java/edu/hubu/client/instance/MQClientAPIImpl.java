@@ -25,6 +25,7 @@ import edu.hubu.common.protocol.header.request.PullMessageRequestHeader;
 import edu.hubu.common.protocol.header.response.GetMaxOffsetResponseHeader;
 import edu.hubu.common.protocol.header.response.PullMessageResponseHeader;
 import edu.hubu.common.protocol.header.response.SendMessageResponseHeader;
+import edu.hubu.common.protocol.heartbeat.HeartbeatData;
 import edu.hubu.common.protocol.request.RequestCode;
 import edu.hubu.common.protocol.route.TopicRouteData;
 import edu.hubu.common.utils.MixAll;
@@ -183,6 +184,22 @@ public class MQClientAPIImpl {
         sendResult.setTraceOn(traceOn == null || "true".equalsIgnoreCase(traceOn));
 
         return sendResult;
+    }
+
+    public int sendHeartbeat(final String brokerAddr,final HeartbeatData heartbeatData,final long timeoutMillis)
+            throws RemotingException, MQBrokerException, InterruptedException {
+        RemotingCommand request = RemotingCommand.createRequestCommand(RequestCode.HEART_BEAT, null);
+        request.setLanguage(clientConfig.getLanguageCode());
+        request.setBody(heartbeatData.encode());
+        RemotingCommand response = this.remotingClient.invokeSync(brokerAddr, request, timeoutMillis);
+        assert response != null;
+        switch (response.getCode()){
+            case ResponseCode.SUCCESS:
+                return response.getVersion();
+            default:
+                break;
+        }
+        throw new MQBrokerException(response.getCode(), response.getRemark());
     }
 
 

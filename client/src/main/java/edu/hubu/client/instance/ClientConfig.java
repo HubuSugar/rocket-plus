@@ -2,6 +2,7 @@ package edu.hubu.client.instance;
 
 import edu.hubu.common.utils.NameServerAddressUtil;
 import edu.hubu.remoting.netty.RemotingUtil;
+import edu.hubu.remoting.netty.protocol.LanguageCode;
 import io.netty.util.internal.StringUtil;
 
 /**
@@ -22,6 +23,8 @@ public class ClientConfig {
 
     private long pollNameSrvInterval = 1000 * 30;
     protected String namespace;
+
+    private LanguageCode languageCode = LanguageCode.JAVA;
 
 
     public String buildMQClientId(){
@@ -97,5 +100,13 @@ public class ClientConfig {
 
     public void setVipChannelEnable(boolean vipChannelEnable) {
         this.vipChannelEnable = vipChannelEnable;
+    }
+
+    public LanguageCode getLanguageCode() {
+        return languageCode;
+    }
+
+    public void setLanguageCode(LanguageCode languageCode) {
+        this.languageCode = languageCode;
     }
 }

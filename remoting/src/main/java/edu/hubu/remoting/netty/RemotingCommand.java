@@ -5,6 +5,7 @@ import edu.hubu.remoting.netty.annotation.NotNull;
 import edu.hubu.remoting.netty.codec.RocketMQSerialize;
 import edu.hubu.remoting.netty.codec.SerializeType;
 import edu.hubu.remoting.netty.exception.RemotingCommandException;
+import edu.hubu.remoting.netty.protocol.LanguageCode;
 import edu.hubu.remoting.netty.protocol.RemotingSerialize;
 import lombok.extern.slf4j.Slf4j;
 
@@ -22,6 +23,7 @@ import java.util.concurrent.atomic.AtomicInteger;
  */
 @Slf4j
 public class RemotingCommand {
+    public static final String REMOTING_VERSION_KEY = "rocket.remoting.version";
     private static final AtomicInteger requestId = new AtomicInteger(0);
     private static final int RPC_ONEWAY = 1;
     private static final int RPC_TYPE = 0;
@@ -43,10 +45,13 @@ public class RemotingCommand {
 
     private static SerializeType serializeTypeInThisServer = SerializeType.JSON;
     private int code;
+    private LanguageCode language = LanguageCode.JAVA;
+    private int version;
+    private int opaque = requestId.getAndIncrement();
     private int flag = 0;
     private String remark;
+    private static volatile int configVersion = -1;
 
-    private int opaque = requestId.getAndIncrement();
 
     private HashMap<String, String> extFields;
     private transient CustomCommandHeader customHeader;
@@ -66,6 +71,7 @@ public class RemotingCommand {
         RemotingCommand command = new RemotingCommand();
         command.setCode(requestCode);
         command.customHeader = customHeader;
+        setCmdVersion(command);
         return command;
     }
 
@@ -94,8 +100,18 @@ public class RemotingCommand {
         return response;
     }
 
-    private static void setCmdVersion(RemotingCommand command){
+    private static void setCmdVersion(RemotingCommand cmd){
+        if(configVersion >= 0){
+            cmd.setVersion(configVersion);
+        }else{
+            String v = System.getProperty(REMOTING_VERSION_KEY);
+            if(v != null){
+                int version = Integer.parseInt(v);
+                cmd.setVersion(version);
+                configVersion = version;
+            }
 
+        }
     }
 
     public CustomCommandHeader decodeCustomCommandHeader(Class<? extends CustomCommandHeader> clazz){
@@ -381,6 +397,22 @@ public class RemotingCommand {
 
     public void setExtFields(HashMap<String, String> extFields) {
         this.extFields = extFields;
+    }
+
+    public LanguageCode getLanguage() {
+        return language;
+    }
+
+    public void setLanguage(LanguageCode language) {
+        this.language = language;
+    }
+
+    public int getVersion() {
+        return version;
+    }
+
+    public void setVersion(int version) {
+        this.version = version;
     }
 
     @Override
