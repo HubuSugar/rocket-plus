@@ -14,7 +14,7 @@ public class PullResult {
     private final long nextBeginOffset;
     private final long minOffset;
     private final long maxOffset;
-    private final List<MessageExt> msgFoundList;
+    private List<MessageExt> msgFoundList;
 
     public PullResult(PullStatus pullStatus, long nextBeginOffset, long minOffset, long maxOffset, List<MessageExt> msgFoundList) {
         this.pullStatus = pullStatus;
@@ -42,5 +42,9 @@ public class PullResult {
 
     public List<MessageExt> getMsgFoundList() {
         return msgFoundList;
+    }
+
+    public void setMsgFoundList(List<MessageExt> msgFoundList) {
+        this.msgFoundList = msgFoundList;
     }
 }

@@ -55,7 +55,7 @@ public class BrokerData implements Comparable<BrokerData>{
 
     @Override
     public int compareTo(BrokerData o) {
-        return 0;
+        return this.brokerName.compareTo(o.getBrokerName());
     }
 
 }

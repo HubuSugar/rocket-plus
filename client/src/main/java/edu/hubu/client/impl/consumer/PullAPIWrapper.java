@@ -2,6 +2,7 @@ package edu.hubu.client.impl.consumer;
 
 import edu.hubu.client.consumer.PullCallback;
 import edu.hubu.client.consumer.PullResult;
+import edu.hubu.client.consumer.PullStatus;
 import edu.hubu.client.exception.MQClientException;
 import edu.hubu.client.hook.FilterMessageHook;
 import edu.hubu.client.impl.CommunicationMode;
@@ -9,7 +10,7 @@ import edu.hubu.client.impl.FindBrokerResult;
 import edu.hubu.client.instance.MQClientInstance;
 import edu.hubu.common.exception.broker.MQBrokerException;
 import edu.hubu.common.filter.ExpressionType;
-import edu.hubu.common.message.MessageQueue;
+import edu.hubu.common.message.*;
 import edu.hubu.common.protocol.header.request.PullMessageRequestHeader;
 import edu.hubu.common.protocol.heartbeat.SubscriptionData;
 import edu.hubu.common.protocol.route.TopicRouteData;
@@ -17,6 +18,7 @@ import edu.hubu.common.sysFlag.PullSysFlag;
 import edu.hubu.common.utils.MixAll;
 import edu.hubu.remoting.netty.exception.RemotingException;
 
+import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
@@ -44,6 +46,55 @@ public class PullAPIWrapper {
         this.mqClientInstance = mqClientInstance;
         this.consumerGroup = consumerGroup;
         this.unitMode = unitMode;
+    }
+
+
+    public PullResult processPullResult(final MessageQueue mq,final PullResult pullResult,final SubscriptionData subscriptionData) {
+        PullResultExt pullResultExt = (PullResultExt) pullResult;
+        this.updatePullFromWhichNode(mq, pullResultExt.getSuggestWhichBrokerId());
+
+        if(PullStatus.FOUND == pullResult.getPullStatus()){
+            ByteBuffer byteBuffer = ByteBuffer.wrap(pullResultExt.getMessageBinary());
+            List<MessageExt> msgList = MessageDecoder.decodes(byteBuffer);
+
+            List<MessageExt> messageFilterAgain = msgList;
+            if(!subscriptionData.getTagSet().isEmpty() && !subscriptionData.isClassFilterMode()){
+                messageFilterAgain = new ArrayList<>(msgList.size());
+                for (MessageExt msg : msgList) {
+                    if(msg.getTags() != null){
+                        if(subscriptionData.getTagSet().contains(msg.getTags())){
+                            messageFilterAgain.add(msg);
+                        }
+                    }
+                }
+            }
+
+            //todo exec message hook
+
+            for (MessageExt msg : messageFilterAgain) {
+                String tranFlag = msg.getProperty(MessageConst.PROPERTY_TRANSACTION_PREPARE);
+                if(Boolean.parseBoolean(tranFlag)){
+                    msg.setTransactionId(msg.getProperty(MessageConst.PROPERTY_UNIQ_CLIENT_MESSAGE_ID_KEYIDX));
+                }
+                MessageAccessor.putProperty(msg, MessageConst.PROPERTY_MIN_OFFSET, Long.toString(pullResult.getMinOffset()));
+                MessageAccessor.putProperty(msg, MessageConst.PROPERTY_MAX_OFFSET, Long.toString(pullResult.getMaxOffset()));
+                msg.setBrokerName(mq.getBrokerName());
+            }
+
+            pullResultExt.setMsgFoundList(messageFilterAgain);
+        }
+        pullResultExt.setMessageBinary(null);
+
+        return pullResult;
+    }
+
+    private void updatePullFromWhichNode(final MessageQueue mq,final long brokerId) {
+        AtomicLong suggest = this.pullFromWhichNodeTable.get(mq);
+        if(null == suggest){
+            this.pullFromWhichNodeTable.put(mq, new AtomicLong(brokerId));
+        }else{
+            suggest.set(brokerId);
+        }
     }
 
     public void registerFilterMessageHook(ArrayList<FilterMessageHook> filterMessageHookList) {
@@ -165,10 +216,6 @@ public class PullAPIWrapper {
             }
         }
         return value;
-    }
-
-    public void processPullResult(MessageQueue mq, PullResult pullResult, SubscriptionData subscriptionData) {
-
     }
 
     public ConcurrentHashMap<MessageQueue, AtomicLong> getPullFromWhichNodeTable() {

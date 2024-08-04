@@ -38,7 +38,7 @@ public class ConsumerManager{
         ConsumerGroupInfo consumerGroupInfo = this.consumerTable.get(groupName);
         if(consumerGroupInfo == null){
             ConsumerGroupInfo tmp = new ConsumerGroupInfo(groupName, consumerType, messageModel, consumeFromWhere);
-            ConsumerGroupInfo prev = this.consumerTable.put(groupName, tmp);
+            ConsumerGroupInfo prev = this.consumerTable.putIfAbsent(groupName, tmp);
             consumerGroupInfo = prev != null ? prev : tmp;
         }
 

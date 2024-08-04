@@ -1,5 +1,7 @@
 package edu.hubu.common.utils;
 
+import java.lang.management.ManagementFactory;
+import java.lang.management.RuntimeMXBean;
 import java.nio.charset.StandardCharsets;
 import java.text.NumberFormat;
 import java.util.zip.CRC32;
@@ -11,6 +13,16 @@ import java.util.zip.CRC32;
  */
 public class UtilAll {
     private static final char[] HEX_ARRAY = "0123456789ABCDEF".toCharArray();
+
+    public static int getPid() {
+        RuntimeMXBean runtime = ManagementFactory.getRuntimeMXBean();
+        String name = runtime.getName();  //format: pid@hostname
+        try{
+            return Integer.parseInt(name.substring(0, name.indexOf("@")));
+        }catch (Exception e){
+            return -1;
+        }
+    }
 
     public static String offset2Filename(final long offset){
         final NumberFormat nf = NumberFormat.getInstance();
@@ -45,5 +57,9 @@ public class UtilAll {
         CRC32 crc32 = new CRC32();
         crc32.update(body, offset, len);
         return (int) (crc32.getValue() & 0x7FFFFFFF);
+    }
+
+    public static byte[] unCompress(byte[] body) {
+        return body;
     }
 }

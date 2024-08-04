@@ -24,9 +24,9 @@ import java.util.concurrent.ConcurrentHashMap;
 @Slf4j
 public abstract class RebalanceImpl {
 
-    private final ConcurrentHashMap<MessageQueue, ProcessQueue> processQueueTable = new ConcurrentHashMap<>(64);
-    private final ConcurrentHashMap<String, Set<MessageQueue>> topicSubscribeTable = new ConcurrentHashMap<>();
-    private final ConcurrentHashMap<String, SubscriptionData> subscriptionInner = new ConcurrentHashMap<>();
+    protected final ConcurrentHashMap<MessageQueue, ProcessQueue> processQueueTable = new ConcurrentHashMap<>(64);
+    protected final ConcurrentHashMap<String, Set<MessageQueue>> topicSubscribeTable = new ConcurrentHashMap<>();
+    protected final ConcurrentHashMap<String, SubscriptionData> subscriptionInner = new ConcurrentHashMap<>();
 
     protected String consumerGroup;
     protected MessageModel messageModel;

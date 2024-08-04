@@ -27,7 +27,6 @@ public class DefaultMQProducer extends ClientConfig {
     }
 
     public void start() throws MQClientException {
-
         this.defaultMQProducerImpl.start();
     }
 
@@ -77,5 +76,9 @@ public class DefaultMQProducer extends ClientConfig {
 
     public void setRetryAnotherBrokerWhenStoreFail(boolean retryAnotherBrokerWhenStoreFail) {
         this.retryAnotherBrokerWhenStoreFail = retryAnotherBrokerWhenStoreFail;
+    }
+
+    public DefaultMQProducerImpl getDefaultMQProducerImpl() {
+        return defaultMQProducerImpl;
     }
 }

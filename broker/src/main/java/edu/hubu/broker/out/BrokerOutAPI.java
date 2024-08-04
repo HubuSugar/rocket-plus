@@ -1,6 +1,7 @@
 package edu.hubu.broker.out;
 
 import edu.hubu.common.DataVersion;
+import edu.hubu.common.utils.UtilAll;
 import edu.hubu.remoting.netty.exception.RemotingConnectException;
 import edu.hubu.remoting.netty.exception.RemotingSendRequestException;
 import edu.hubu.remoting.netty.exception.RemotingTimeoutException;
@@ -145,7 +146,7 @@ public class BrokerOutAPI {
         requestBody.setFilterServerList(filterServerList);
         final byte[] body = requestBody.encode(compressed);
 
-        requestHeader.setCrc32(1);
+        requestHeader.setCrc32(UtilAll.crc32(body));
         final CountDownLatch countDownLatch = new CountDownLatch(nameSrvList.size());
         for (String nameSrv : nameSrvList) {
             executor.execute(new Runnable() {

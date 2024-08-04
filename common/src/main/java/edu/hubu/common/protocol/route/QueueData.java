@@ -54,6 +54,6 @@ public class QueueData implements Comparable<QueueData>{
 
     @Override
     public int compareTo(QueueData o) {
-        return 0;
+        return this.brokerName.compareTo(o.getBrokerName());
     }
 }

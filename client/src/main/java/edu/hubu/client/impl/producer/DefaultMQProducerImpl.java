@@ -11,6 +11,8 @@ import edu.hubu.client.producer.DefaultMQProducer;
 import edu.hubu.client.producer.MQProducerInner;
 import edu.hubu.client.producer.SendResult;
 import edu.hubu.client.producer.SendStatus;
+import edu.hubu.common.ServiceState;
+import edu.hubu.common.utils.MixAll;
 import edu.hubu.remoting.netty.exception.RemotingException;
 import edu.hubu.common.exception.broker.MQBrokerException;
 import edu.hubu.common.message.Message;
@@ -33,6 +35,7 @@ import java.util.concurrent.ConcurrentMap;
 @Slf4j
 public class DefaultMQProducerImpl implements MQProducerInner {
 
+    private ServiceState serviceState = ServiceState.CREATE_JUST;
     private final DefaultMQProducer defaultMQProducer;
     //<topic, topicPublish>
     private final ConcurrentMap<String, TopicPublishInfo> topicPublishInfoTable = new ConcurrentHashMap<>();
@@ -70,18 +73,40 @@ public class DefaultMQProducerImpl implements MQProducerInner {
     }
 
     public void start(final boolean startFactory) throws MQClientException {
-        //默认生成topic
-        this.topicPublishInfoTable.put(defaultMQProducer.getCreateTopicKey(), new TopicPublishInfo());
-        this.mqClientFactory = MQClientManager.getInstance().getOrCreateInstance(this.defaultMQProducer);
-        boolean b = this.mqClientFactory.registerProducer(this.defaultMQProducer.getProducerGroup(), this);
+        switch (this.serviceState){
+            case CREATE_JUST:
+                this.serviceState = ServiceState.START_FAILED;
 
-        if(!b){
-            throw new MQClientException(1,"register producer exception");
+                if(!this.defaultMQProducer.getProducerGroup().equals(MixAll.CLIENT_INNER_PRODUCER_GROUP)){
+                    this.defaultMQProducer.changeInstanceNameToPID();
+                }
+
+                this.mqClientFactory = MQClientManager.getInstance().getOrCreateInstance(this.defaultMQProducer);
+                boolean registerOk = this.mqClientFactory.registerProducer(this.defaultMQProducer.getProducerGroup(), this);
+
+                if(!registerOk){
+                    this.serviceState = ServiceState.CREATE_JUST;
+                    throw new MQClientException("The producer [" + this.defaultMQProducer.getProducerGroup() + "] has been created before, specify " +
+                            "another name please", null);
+                }
+
+                //默认生成topic
+                this.topicPublishInfoTable.put(defaultMQProducer.getCreateTopicKey(), new TopicPublishInfo());
+                if(startFactory){
+                    mqClientFactory.start();
+                }
+                this.serviceState = ServiceState.RUNNING;
+                break;
+            case RUNNING:
+            case START_FAILED:
+            case SHUTDOWN_ALREADY:
+                throw new MQClientException("the producer service state is not OK, maybe start once, state:" + this.serviceState, null);
+
         }
 
-        if(startFactory){
-            mqClientFactory.start();
-        }
+        this.mqClientFactory.sendHeartbeatToAllBrokerWithLock();
+
+        //todo 清理过期的请求
 
     }
 

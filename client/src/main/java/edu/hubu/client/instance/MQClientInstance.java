@@ -8,12 +8,15 @@ import edu.hubu.client.impl.consumer.MQConsumerInner;
 import edu.hubu.client.impl.consumer.PullMessageService;
 import edu.hubu.client.impl.producer.DefaultMQProducerImpl;
 import edu.hubu.client.impl.rebalance.RebalanceService;
+import edu.hubu.client.producer.ClientRemotingProcessor;
 import edu.hubu.client.producer.DefaultMQProducer;
 import edu.hubu.client.producer.MQProducerInner;
 import edu.hubu.common.PermName;
+import edu.hubu.common.ServiceState;
 import edu.hubu.common.protocol.heartbeat.ConsumerData;
 import edu.hubu.common.protocol.heartbeat.HeartbeatData;
 import edu.hubu.common.protocol.heartbeat.ProducerData;
+import edu.hubu.common.protocol.heartbeat.SubscriptionData;
 import edu.hubu.remoting.netty.exception.RemotingException;
 import edu.hubu.common.message.MessageQueue;
 import edu.hubu.common.protocol.route.BrokerData;
@@ -65,16 +68,19 @@ public class MQClientInstance {
         }
     });
 
+    private final ClientRemotingProcessor clientRemotingProcessor;
     private final PullMessageService pullMessageService;
-
     private final RebalanceService rebalanceService;
+    private final DefaultMQProducer defaultMQProducer;
+    private ServiceState serviceState = ServiceState.CREATE_JUST;
 
     private final AtomicLong sendHeartbeatTimesTotal = new AtomicLong(0);
 
-    public MQClientInstance(ClientConfig clientConfig, int instanceIndex, String clientId) {
+    public MQClientInstance(final ClientConfig clientConfig, int instanceIndex, String clientId) {
         this.clientConfig = clientConfig;
         this.clientId = clientId;
         this.nettyClientConfig = new NettyClientConfig();
+        this.clientRemotingProcessor = new ClientRemotingProcessor(this);
         this.mqClientAPI = new MQClientAPIImpl(this.nettyClientConfig, clientConfig);
 
         this.mqAdminImpl = new MQAdminImpl(this);
@@ -85,36 +91,53 @@ public class MQClientInstance {
         }
 
         this.pullMessageService = new PullMessageService(this);
-
         this.rebalanceService = new RebalanceService(this);
+        this.defaultMQProducer = new DefaultMQProducer(MixAll.CLIENT_INNER_PRODUCER_GROUP);
+        this.defaultMQProducer.resetClientConfig(clientConfig);
     }
 
     /**
      * 主要是启动netty客户端
      */
-    public void start(){
+    public void start() throws MQClientException {
         synchronized (this){
-            if(this.clientConfig.getNameServer() == null){
-                this.mqClientAPI.fetchNameSrvAddress();
+            switch (serviceState){
+                case CREATE_JUST:
+                    this.serviceState = ServiceState.START_FAILED;
+                    if(this.clientConfig.getNameServer() == null){
+                        this.mqClientAPI.fetchNameSrvAddress();
+                    }
+                    //启动netty客户端
+                    this.mqClientAPI.start();
+                    //start variables schedule tasks
+                    this.startScheduleTasks();
+                    //启动消息拉取线程，push方式
+                    this.pullMessageService.start();
+                    //启动rebalance线程
+                    this.rebalanceService.start();
+                    //
+                    this.defaultMQProducer.getDefaultMQProducerImpl().start(false);
+                    log.info("the client factory [{}] start ok", this.clientId);
+                    this.serviceState = ServiceState.RUNNING;
+                    break;
+                case START_FAILED:
+                    throw new MQClientException("The factory object ["+ this.clientId +"] has been created before, and failed", null);
+                default:
+                    break;
             }
-            //启动netty客户端
-            this.mqClientAPI.start();
-            //start variables schedule tasks
-            this.startScheduleTasks();
-            //启动消息拉取线程，push方式
-            this.pullMessageService.start();
-            //启动rebalance线程
-            this.rebalanceService.start();
-
-
         }
     }
 
     private void startScheduleTasks(){
         //1、定时获取nameSrvAddress
-        if(null == this.clientConfig.getNameServer()){
-            this.scheduledExecutorService.scheduleAtFixedRate(this.mqClientAPI::fetchNameSrvAddress,
-                    1000 * 10, 1000 * 60 * 2, TimeUnit.MILLISECONDS);
+        if (null == this.clientConfig.getNameServer()) {
+            this.scheduledExecutorService.scheduleAtFixedRate(() -> {
+                try {
+                    this.mqClientAPI.fetchNameSrvAddress();
+                } catch (Exception e) {
+                    log.error("fetch nameserver address exception", e);
+                }
+            }, 1000 * 10, 1000 * 60 * 2, TimeUnit.MILLISECONDS);
         }
 
         //2、定时获取topicRouteInfo
@@ -126,7 +149,15 @@ public class MQClientInstance {
             }
         }, 10, this.clientConfig.getPollNameSrvInterval(), TimeUnit.MILLISECONDS);
 
-        //3、定时清理离线的broker
+        //3、定期向nameserver发送心跳及清理离线的broker
+        this.scheduledExecutorService.scheduleAtFixedRate(() -> {
+            try{
+                //todo cleanOffline broker
+                this.sendHeartbeatToAllBrokerWithLock();
+            }catch (Exception e){
+                log.error("send heartbeat to all broker exception", e);
+            }
+        }, 10, this.clientConfig.getHeartbeatBrokerInterval(), TimeUnit.MILLISECONDS);
 
         //4、持久化消费进度
 
@@ -147,19 +178,32 @@ public class MQClientInstance {
      * mqClientInstance启动后，定时任务更新topicRouteInfo
      */
     public void updateTopicInfoFromNameServer(){
-        Set<String> list = new HashSet<>();
+        Set<String> topicList = new HashSet<>();
         //consumer
+        Iterator<Map.Entry<String, MQConsumerInner>> iterator = this.consumerTable.entrySet().iterator();
+        while (iterator.hasNext()){
+            MQConsumerInner mqConsumerInner = iterator.next().getValue();
+            if(mqConsumerInner != null){
+                Set<SubscriptionData> subscriptions = mqConsumerInner.subscriptions();
+                if(subscriptions != null){
+                    for (SubscriptionData subscription : subscriptions) {
+                        topicList.add(subscription.getTopic());
+                    }
+                }
+            }
+        }
 
         //producer
         for (Map.Entry<String, MQProducerInner> entry : this.producerTable.entrySet()) {
             MQProducerInner producerInner = entry.getValue();
             if(producerInner != null){
                 Set<String> ptl = producerInner.getPublishTopicList();
-                list.addAll(ptl);
+                topicList.addAll(ptl);
             }
         }
 
-        for (String s : list) {
+        log.info("定时更新Topic信息：size: {}, topics: {}", topicList.size(), topicList);
+        for (String s : topicList) {
             this.updateTopicInfoFromNameServer(s);
         }
     }
@@ -178,9 +222,9 @@ public class MQClientInstance {
                         topicRouteData = this.mqClientAPI.getDefaultTopicRouteFromNameSrv(defaultMQProducer.getCreateTopicKey(), 1000 * 3);
                         if(topicRouteData != null){
                             for (QueueData queueData : topicRouteData.getQueueData()) {
-                                int queueNum = Math.min(defaultMQProducer.getDefaultQueueNums(), queueData.getReadQueueNums());
-                                queueData.setReadQueueNums(queueNum);
-                                queueData.setWriteQueueNums(queueNum);
+                                int queueNums = Math.min(defaultMQProducer.getDefaultQueueNums(), queueData.getReadQueueNums());
+                                queueData.setReadQueueNums(queueNums);
+                                queueData.setWriteQueueNums(queueNums);
                             }
                         }
                     }else{
@@ -193,6 +237,8 @@ public class MQClientInstance {
                         boolean changed = topicRouteDataHasChanged(old, topicRouteData);
                         if(!changed){
                             changed = this.isNeedUpdateTopicRouteInfo(topic);
+                        }else{
+                            log.info("The topic[{}] route info changed, old: {}, new: {}", topic, old, topicRouteData);
                         }
 
                         if(changed){
@@ -218,8 +264,8 @@ public class MQClientInstance {
                             //update sub info
                             {
                                 Set<MessageQueue> topicSubscribeInfo = topicRouteData2TopicSubscribeInfo(topic, topicRouteData);
-                                for (Map.Entry<String, MQConsumerInner> stringMQConsumerInnerEntry : this.consumerTable.entrySet()) {
-                                    MQConsumerInner consumerInner = stringMQConsumerInnerEntry.getValue();
+                                for (Map.Entry<String, MQConsumerInner> consumerInnerEntry : this.consumerTable.entrySet()) {
+                                    MQConsumerInner consumerInner = consumerInnerEntry.getValue();
                                     if (consumerInner != null) {
                                         consumerInner.updateTopicSubscribeInfo(topic, topicSubscribeInfo);
                                     }
@@ -324,13 +370,22 @@ public class MQClientInstance {
             while (iterator.hasNext() && !result){
                 Map.Entry<String, MQProducerInner> entry = iterator.next();
                 MQProducerInner producerInner = entry.getValue();
-                result = producerInner.isNeedUpdateTopicRoute(topic);
+                if(producerInner != null){
+                    result = producerInner.isNeedUpdateTopicRoute(topic);
+                }
             }
         }
 
         //consumer
         {
-
+            Iterator<Map.Entry<String, MQConsumerInner>> iterator = this.consumerTable.entrySet().iterator();
+            while (iterator.hasNext() && !result){
+                Map.Entry<String, MQConsumerInner> entry = iterator.next();
+                MQConsumerInner consumerInner = entry.getValue();
+                if(consumerInner != null){
+                    result = consumerInner.isNeedUpdateTopicRoute(topic);
+                }
+            }
         }
         return result;
     }
@@ -346,7 +401,7 @@ public class MQClientInstance {
         Collections.sort(newData.getQueueData());
         Collections.sort(newData.getBrokerData());
 
-        return !old.equals(topicRouteData);
+        return !oldData.equals(newData);
     }
 
     public void doRebalance() {
@@ -462,33 +517,32 @@ public class MQClientInstance {
                     for (Map.Entry<Long, String> brokerEntry : oneTable.entrySet()) {
                         Long brokerId = brokerEntry.getKey();
                         String brokerAddr = brokerEntry.getValue();
-                        if(brokerAddr != null){
-                            if(consumerDataEmpty){
-                                if(brokerId != MixAll.MASTER_ID){
+                        if (brokerAddr != null) {
+                            if (consumerDataEmpty) {
+                                if (brokerId != MixAll.MASTER_ID) {
                                     continue;
                                 }
+                            }  //fix bug consumerGroup can not find
 
-                                try{
-                                    int version = this.mqClientAPI.sendHeartbeat(brokerAddr, heartbeatData, 3000);
-                                    if(!this.brokerVersionTable.containsKey(brokerName)){
-                                        this.brokerVersionTable.put(brokerName, new HashMap<>(4));
-                                    }
+                            try {
+                                int version = this.mqClientAPI.sendHeartbeat(brokerAddr, heartbeatData, 3000);
+                                if (!this.brokerVersionTable.containsKey(brokerName)) {
+                                    this.brokerVersionTable.put(brokerName, new HashMap<>(4));
+                                }
 
-                                    this.brokerVersionTable.get(brokerName).put(brokerAddr, version);
+                                this.brokerVersionTable.get(brokerName).put(brokerAddr, version);
 
-                                    if(times % 20 == 0){
-                                        log.info("send heart beat to broker [{}, {}, {}]", brokerName, brokerId, brokerAddr);
-                                        log.info(heartbeatData.toString());
-                                    }
-                                }catch (Exception e){
-                                    if(this.isBrokerInNameServer(brokerAddr)){
-                                        log.info("send heart beat to broker[{},{},{}] failed", brokerName, brokerId, brokerAddr, e);
-                                    }else{
-                                        log.info("send heart beat to broker[{},{},{}] exception", brokerName, brokerId, brokerAddr, e);
-                                    }
+                                if (times % 20 == 0) {
+                                    log.info("send heart beat to broker [{}, {}, {}]", brokerName, brokerId, brokerAddr);
+                                    log.info(heartbeatData.toString());
+                                }
+                            } catch (Exception e) {
+                                if (this.isBrokerInNameServer(brokerAddr)) {
+                                    log.info("send heart beat to broker[{},{},{}] failed", brokerName, brokerId, brokerAddr, e);
+                                } else {
+                                    log.info("send heart beat to broker[{},{},{}] exception", brokerName, brokerId, brokerAddr, e);
                                 }
                             }
-
                         }
                     }
                 }

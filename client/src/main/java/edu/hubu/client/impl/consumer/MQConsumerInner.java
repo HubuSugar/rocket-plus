@@ -30,4 +30,6 @@ public interface MQConsumerInner {
     boolean isUnitMode();
 
     void updateTopicSubscribeInfo(String topic, Set<MessageQueue> topicSubscribeInfo);
+
+    boolean isNeedUpdateTopicRoute(String topic);
 }

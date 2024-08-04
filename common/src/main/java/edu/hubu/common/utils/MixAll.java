@@ -15,6 +15,7 @@ public class MixAll {
 
     public static final String RETRY_GROUP_TOPIC_PREFIX = "%RETRY%";
     public static final String CID_RMQ_SYS_PREFIX = "CIS_RMQ_SYS_";
+    public static final String CLIENT_INNER_PRODUCER_GROUP = "CLIENT_INNER_PRODUCER";
 
     public static String getRetryTopic(final String groupName) {
         return RETRY_GROUP_TOPIC_PREFIX + groupName;

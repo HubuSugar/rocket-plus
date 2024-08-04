@@ -93,6 +93,14 @@ public class RebalanceLitePullImpl extends RebalanceImpl{
                 break;
             }
             case CONSUME_FROM_FIRST_OFFSET:
+                long lastOffset = this.defaultLitePullConsumerImpl.getOffsetStore().readOffset(mq, ReadOffsetType.MEMORY_FIRST_THEN_STORE);
+                if(lastOffset >= 0){
+                    result = lastOffset;
+                }else if(-1 == lastOffset){
+                    result = 0;
+                }else {
+                    result = -1;
+                }
                 break;
         }
         return result;

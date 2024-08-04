@@ -105,4 +105,8 @@ public class Message implements Serializable {
     public void setTransactionId(String transactionId) {
         this.transactionId = transactionId;
     }
+
+    public String getTags() {
+        return this.getProperty(MessageConst.PROPERTY_TAGS);
+    }
 }

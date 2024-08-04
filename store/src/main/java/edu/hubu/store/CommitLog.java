@@ -379,7 +379,7 @@ public class CommitLog {
                 case BLANK_MAGIC_CODE:
                     return new DispatchRequest(0, true);
                 default:
-                    log.warn("found illegal magic code 0x{}", Integer.toBinaryString(magicCode));
+                    log.warn("found illegal magic code 0x{}", Integer.toHexString(magicCode));
                     return new DispatchRequest(-1, false);
             }
 

@@ -105,6 +105,17 @@ public class DefaultLitePullConsumerImpl implements MQConsumerInner{
         }
     }
 
+    @Override
+    public boolean isNeedUpdateTopicRoute(String topic) {
+        ConcurrentHashMap<String, SubscriptionData> subscriptionInner = this.rebalanceImpl.getSubscriptionInner();
+        if(subscriptionInner != null){
+            if(subscriptionInner.containsKey(topic)){
+                return !this.rebalanceImpl.getTopicSubscribeTable().containsKey(topic);
+            }
+        }
+        return false;
+    }
+
     public synchronized void start() throws MQClientException {
         switch (this.serviceState){
             case CREATE_JUST:

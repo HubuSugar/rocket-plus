@@ -187,10 +187,6 @@ public class TopicConfigManager extends ConfigManager {
                 }finally {
                     this.topicConfigLock.unlock();
                 }
-
-                if(createNew){
-
-                }
             }
         }catch (InterruptedException e){
             log.error("create new topic in send message back exception", e);

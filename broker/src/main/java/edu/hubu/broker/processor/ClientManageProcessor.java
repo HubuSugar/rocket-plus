@@ -50,14 +50,14 @@ public class ClientManageProcessor extends AsyncNettyRequestProcessor implements
         return false;
     }
 
-    public RemotingCommand heartbeat(final ChannelHandlerContext ctx,final RemotingCommand cmd){
+    public RemotingCommand heartbeat(final ChannelHandlerContext ctx,final RemotingCommand requestCommand){
         RemotingCommand responseCommand = RemotingCommand.createResponseCommand(null);
-        HeartbeatData heartbeatData = HeartbeatData.decode(responseCommand.getBody(), HeartbeatData.class);
+        HeartbeatData heartbeatData = HeartbeatData.decode(requestCommand.getBody(), HeartbeatData.class);
         ClientChannelInfo clientChannelInfo = new ClientChannelInfo(
                 ctx.channel(),
                 heartbeatData.getClientId(),
-                cmd.getLanguage(),
-                cmd.getVersion());
+                requestCommand.getLanguage(),
+                requestCommand.getVersion());
 
         //consumer
         for (ConsumerData consumeDatum : heartbeatData.getConsumeData()) {

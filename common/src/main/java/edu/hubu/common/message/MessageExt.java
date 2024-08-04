@@ -58,6 +58,22 @@ public class MessageExt extends Message{
         return byteBuffer;
     }
 
+    public ByteBuffer getStoreHostBytes() {
+        return socketAddress2ByteBuffer(this.storeHost);
+    }
+
+    public static ByteBuffer socketAddress2ByteBuffer(final SocketAddress socketAddress){
+        InetSocketAddress inetSocketAddress = (InetSocketAddress) socketAddress;
+        InetAddress address = inetSocketAddress.getAddress();
+        ByteBuffer byteBuffer;
+        if (address instanceof Inet4Address){
+            byteBuffer = ByteBuffer.allocate(4 + 4);
+        }else{
+            byteBuffer = ByteBuffer.allocate(16 + 4);
+        }
+        return socketAddress2ByteBuffer(socketAddress, byteBuffer);
+    }
+
     public String getBrokerName() {
         return brokerName;
     }

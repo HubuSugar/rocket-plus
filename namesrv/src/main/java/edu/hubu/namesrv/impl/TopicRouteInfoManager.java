@@ -53,7 +53,8 @@ public class TopicRouteInfoManager {
      */
     public TopicRouteData pickupRouteData(final String topic) {
         TopicRouteData topicRouteData = new TopicRouteData();
-        boolean  foundBrokerData = false; //foundQueueData = false,
+        boolean foundQueueData = false;
+        boolean  foundBrokerData = false;
         Set<String> brokerNameSet = new HashSet<>();
         List<BrokerData> brokerDatas = new LinkedList<>();
         topicRouteData.setBrokerData(brokerDatas);
@@ -67,7 +68,8 @@ public class TopicRouteInfoManager {
                 List<QueueData> queueData = topicQueueTable.get(topic);
                 if(queueData != null){
                     topicRouteData.setQueueData(queueData);
-                    // foundQueueData = true;
+                    foundQueueData = true;
+
                     for (QueueData data : queueData) {
                         brokerNameSet.add(data.getBrokerName());
                     }
@@ -76,8 +78,8 @@ public class TopicRouteInfoManager {
                         BrokerData brokerData = this.brokerAddressTable.get(brokerName);
                         if(brokerData != null){
                             BrokerData newBroker = new BrokerData().setCluster(brokerData.getCluster()).setBrokerName(brokerName).setBrokerAddrTable((HashMap<Long, String>) brokerData.getBrokerAddrTable().clone());
-                            foundBrokerData = true;
                             brokerDatas.add(newBroker);
+                            foundBrokerData = true;
                             for (String brokerAddr : newBroker.getBrokerAddrTable().values()) {
                                 List<String> filerServers = this.filterServerTable.get(brokerAddr);
                                 filterServerList.put(brokerAddr, filerServers);
@@ -92,7 +94,7 @@ public class TopicRouteInfoManager {
            log.error("name srv pick up topic route info exception", e);
         }
 
-        if(foundBrokerData){
+        if(foundBrokerData && foundQueueData){
             return topicRouteData;
         }
 

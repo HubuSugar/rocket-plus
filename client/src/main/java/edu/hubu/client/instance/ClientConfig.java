@@ -1,6 +1,7 @@
 package edu.hubu.client.instance;
 
 import edu.hubu.common.utils.NameServerAddressUtil;
+import edu.hubu.common.utils.UtilAll;
 import edu.hubu.remoting.netty.RemotingUtil;
 import edu.hubu.remoting.netty.protocol.LanguageCode;
 import io.netty.util.internal.StringUtil;
@@ -14,14 +15,17 @@ public class ClientConfig {
     public static final String SEND_MESSAGE_WITH_VIP_CHANNEL = "sendMessageWithVipChannel";
     private static final String SPLIT = "@";
     private String nameServer = NameServerAddressUtil.getNameServerAddress();
-    private final String clientIp = RemotingUtil.getLocalAddress();
+    private String clientIp = RemotingUtil.getLocalAddress();
     private String instanceName = System.getProperty("rocketmq.client.name", "DEFAULT");
+    private int clientCallbackExecutorThreads = Runtime.getRuntime().availableProcessors();
 
     private boolean unitMode = false;
     private String unitName;
     private boolean vipChannelEnable = Boolean.parseBoolean(System.getProperty(SEND_MESSAGE_WITH_VIP_CHANNEL, "false"));
 
     private long pollNameSrvInterval = 1000 * 30;
+    private long heartbeatBrokerInterval = 1000 * 30;
+
     protected String namespace;
 
     private LanguageCode languageCode = LanguageCode.JAVA;
@@ -36,6 +40,25 @@ public class ClientConfig {
             sb.append(SPLIT).append(unitName);
         }
         return sb.toString();
+    }
+
+    public void changeInstanceNameToPID() {
+        if(instanceName.equals("DEFAULT")){
+            this.instanceName = String.valueOf(UtilAll.getPid());
+        }
+    }
+
+    public void resetClientConfig(ClientConfig cc) {
+        this.nameServer = cc.nameServer;
+        this.clientIp = cc.clientIp;
+        this.instanceName = cc.instanceName;
+        this.clientCallbackExecutorThreads = cc.clientCallbackExecutorThreads;
+        this.pollNameSrvInterval = cc.pollNameSrvInterval;
+        this.heartbeatBrokerInterval = cc.heartbeatBrokerInterval;
+        this.unitMode = cc.unitMode;
+        this.unitName = cc.unitName;
+        this.namespace = cc.namespace;
+        this.languageCode = cc.languageCode;
     }
 
 
@@ -108,5 +131,13 @@ public class ClientConfig {
 
     public void setLanguageCode(LanguageCode languageCode) {
         this.languageCode = languageCode;
+    }
+
+    public long getHeartbeatBrokerInterval() {
+        return heartbeatBrokerInterval;
+    }
+
+    public void setHeartbeatBrokerInterval(long heartbeatBrokerInterval) {
+        this.heartbeatBrokerInterval = heartbeatBrokerInterval;
     }
 }

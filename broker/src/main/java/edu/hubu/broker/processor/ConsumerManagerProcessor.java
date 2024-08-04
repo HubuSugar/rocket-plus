@@ -67,7 +67,7 @@ public class ConsumerManagerProcessor extends AsyncNettyRequestProcessor impleme
                 log.warn("get all client ids failed, {}, {}", requestHeader.getConsumerGroup(), RemotingHelper.parseChannel2RemoteAddress(ctx.channel()));
             }
         }else{
-            log.warn("get consumer group info failed, {}, {}", requestHeader.getConsumerGroup(), RemotingHelper.parseChannel2RemoteAddress(ctx.channel()));
+            log.warn("get consumer group info failed, consumerGroup: {}, channel: {}", requestHeader.getConsumerGroup(), RemotingHelper.parseChannel2RemoteAddress(ctx.channel()));
         }
 
         response.setCode(ResponseCode.SYSTEM_ERROR);
