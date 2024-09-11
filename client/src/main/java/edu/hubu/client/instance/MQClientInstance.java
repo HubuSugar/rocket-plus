@@ -24,6 +24,7 @@ import edu.hubu.common.protocol.route.QueueData;
 import edu.hubu.common.protocol.route.TopicRouteData;
 import edu.hubu.common.utils.MixAll;
 import edu.hubu.remoting.netty.NettyClientConfig;
+import edu.hubu.remoting.netty.handler.RpcHook;
 import lombok.extern.slf4j.Slf4j;
 
 import java.util.*;
@@ -49,7 +50,7 @@ public class MQClientInstance {
 
     //<group, producer>
     private final ConcurrentMap<String, MQProducerInner> producerTable = new ConcurrentHashMap<>();
-
+    //<group, Consumer>
     private final ConcurrentMap<String, MQConsumerInner> consumerTable = new ConcurrentHashMap<>();
 
     //<topic, TopicRouteData>
@@ -76,18 +77,19 @@ public class MQClientInstance {
 
     private final AtomicLong sendHeartbeatTimesTotal = new AtomicLong(0);
 
-    public MQClientInstance(final ClientConfig clientConfig, int instanceIndex, String clientId) {
+    public MQClientInstance(final ClientConfig clientConfig, int instanceIndex, String clientId, RpcHook rpcHook) {
         this.clientConfig = clientConfig;
         this.clientId = clientId;
         this.nettyClientConfig = new NettyClientConfig();
         this.clientRemotingProcessor = new ClientRemotingProcessor(this);
-        this.mqClientAPI = new MQClientAPIImpl(this.nettyClientConfig, clientConfig);
+        this.mqClientAPI = new MQClientAPIImpl(this.nettyClientConfig, clientRemotingProcessor, rpcHook, clientConfig);
 
         this.mqAdminImpl = new MQAdminImpl(this);
 
         //更新nameSrv地址
         if(clientConfig.getNameServer() != null){
             this.mqClientAPI.updateNameSrvAddressList(clientConfig.getNameServer());
+            log.info("user specified name server address: {}", clientConfig.getNameServer());
         }
 
         this.pullMessageService = new PullMessageService(this);

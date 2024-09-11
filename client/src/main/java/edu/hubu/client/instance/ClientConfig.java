@@ -2,9 +2,8 @@ package edu.hubu.client.instance;
 
 import edu.hubu.common.utils.NameServerAddressUtil;
 import edu.hubu.common.utils.UtilAll;
-import edu.hubu.remoting.netty.RemotingUtil;
+import edu.hubu.remoting.netty.common.RemotingUtil;
 import edu.hubu.remoting.netty.protocol.LanguageCode;
-import io.netty.util.internal.StringUtil;
 
 /**
  * @author: sugar
@@ -18,15 +17,17 @@ public class ClientConfig {
     private String clientIp = RemotingUtil.getLocalAddress();
     private String instanceName = System.getProperty("rocketmq.client.name", "DEFAULT");
     private int clientCallbackExecutorThreads = Runtime.getRuntime().availableProcessors();
+    protected String namespace;
+
+    private int pollNameSrvInterval = 1000 * 30;
+    private int heartbeatBrokerInterval = 1000 * 30;
+
+    private int persistConsumerOffsetInterval = 1000 * 5;
+    private long pullTimeDelayWhenException = 1000;
 
     private boolean unitMode = false;
     private String unitName;
     private boolean vipChannelEnable = Boolean.parseBoolean(System.getProperty(SEND_MESSAGE_WITH_VIP_CHANNEL, "false"));
-
-    private long pollNameSrvInterval = 1000 * 30;
-    private long heartbeatBrokerInterval = 1000 * 30;
-
-    protected String namespace;
 
     private LanguageCode languageCode = LanguageCode.JAVA;
 
@@ -36,7 +37,7 @@ public class ClientConfig {
         sb.append(getClientIp());
         sb.append(SPLIT);
         sb.append(getInstanceName());
-        if(!StringUtil.isNullOrEmpty(unitName)){
+        if(!UtilAll.isBlank(unitName)){
             sb.append(SPLIT).append(unitName);
         }
         return sb.toString();
@@ -61,9 +62,27 @@ public class ClientConfig {
         this.languageCode = cc.languageCode;
     }
 
+    public ClientConfig cloneClientConfig(){
+        ClientConfig cc = new ClientConfig();
+        cc.nameServer = this.nameServer;
+        cc.clientIp = this.clientIp;
+        cc.instanceName = this.instanceName;
+        cc.clientCallbackExecutorThreads = this.clientCallbackExecutorThreads;
+        cc.pollNameSrvInterval = this.pollNameSrvInterval;
+        cc.heartbeatBrokerInterval = this.heartbeatBrokerInterval;
+        cc.persistConsumerOffsetInterval = this.persistConsumerOffsetInterval;
+        cc.pullTimeDelayWhenException = this.pullTimeDelayWhenException;
+        cc.unitMode = this.unitMode;
+        cc.unitName = this.unitName;
+        cc.vipChannelEnable = this.vipChannelEnable;
+        cc.namespace = this.namespace;
+        cc.languageCode = this.languageCode;
+        return cc;
+    }
+
 
     public String getNameServer() {
-        if(!StringUtil.isNullOrEmpty(nameServer) && NameServerAddressUtil.NAMESRV_ENDPOINT_PATTERN.matcher(nameServer.trim()).matches()){
+        if(!UtilAll.isBlank(nameServer) && NameServerAddressUtil.NAMESRV_ENDPOINT_PATTERN.matcher(nameServer.trim()).matches()){
             return nameServer.substring(NameServerAddressUtil.ENDPOINT_PREFIX.length());
         }
         return nameServer;
@@ -105,7 +124,7 @@ public class ClientConfig {
         return pollNameSrvInterval;
     }
 
-    public void setPollNameSrvInterval(long pollNameSrvInterval) {
+    public void setPollNameSrvInterval(int pollNameSrvInterval) {
         this.pollNameSrvInterval = pollNameSrvInterval;
     }
 
@@ -137,7 +156,7 @@ public class ClientConfig {
         return heartbeatBrokerInterval;
     }
 
-    public void setHeartbeatBrokerInterval(long heartbeatBrokerInterval) {
+    public void setHeartbeatBrokerInterval(int heartbeatBrokerInterval) {
         this.heartbeatBrokerInterval = heartbeatBrokerInterval;
     }
 }

@@ -5,7 +5,7 @@ import edu.hubu.common.PermName;
 import edu.hubu.common.TopicConfig;
 import edu.hubu.common.protocol.SendMessageRequestHeader;
 import edu.hubu.remoting.netty.RemotingCommand;
-import edu.hubu.remoting.netty.RemotingHelper;
+import edu.hubu.remoting.netty.common.RemotingHelper;
 import edu.hubu.remoting.netty.ResponseCode;
 import edu.hubu.remoting.netty.handler.AsyncNettyRequestProcessor;
 import edu.hubu.remoting.netty.handler.NettyRequestProcessor;

@@ -11,7 +11,7 @@ import edu.hubu.common.subcription.SubscriptionGroupConfig;
 import edu.hubu.common.topic.TopicSysFlag;
 import edu.hubu.common.utils.MixAll;
 import edu.hubu.remoting.netty.RemotingCommand;
-import edu.hubu.remoting.netty.RemotingHelper;
+import edu.hubu.remoting.netty.common.RemotingHelper;
 import edu.hubu.remoting.netty.ResponseCode;
 import edu.hubu.remoting.netty.exception.RemotingCommandException;
 import edu.hubu.remoting.netty.handler.AsyncNettyRequestProcessor;

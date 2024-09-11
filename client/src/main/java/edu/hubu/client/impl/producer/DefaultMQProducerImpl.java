@@ -21,6 +21,7 @@ import edu.hubu.common.message.MessageDecoder;
 import edu.hubu.common.message.MessageQueue;
 import edu.hubu.common.protocol.SendMessageRequestHeader;
 import edu.hubu.common.sysFlag.MessageSysFlag;
+import edu.hubu.remoting.netty.handler.RpcHook;
 import lombok.extern.slf4j.Slf4j;
 
 import java.util.*;
@@ -39,12 +40,17 @@ public class DefaultMQProducerImpl implements MQProducerInner {
     private final DefaultMQProducer defaultMQProducer;
     //<topic, topicPublish>
     private final ConcurrentMap<String, TopicPublishInfo> topicPublishInfoTable = new ConcurrentHashMap<>();
+    private final RpcHook rpcHook;
     private MQClientInstance mqClientFactory;
     private final MQFaultStrategy mqFaultStrategy = new MQFaultStrategy();
 
-    public DefaultMQProducerImpl(DefaultMQProducer defaultMQProducer) {
-        this.defaultMQProducer = defaultMQProducer;
+    public DefaultMQProducerImpl(final DefaultMQProducer defaultMQProducer) {
+        this(defaultMQProducer, null);
+    }
 
+    public DefaultMQProducerImpl(final DefaultMQProducer defaultMQProducer, RpcHook rpcHook){
+        this.defaultMQProducer = defaultMQProducer;
+        this.rpcHook = rpcHook;
     }
 
     @Override
@@ -81,7 +87,7 @@ public class DefaultMQProducerImpl implements MQProducerInner {
                     this.defaultMQProducer.changeInstanceNameToPID();
                 }
 
-                this.mqClientFactory = MQClientManager.getInstance().getOrCreateInstance(this.defaultMQProducer);
+                this.mqClientFactory = MQClientManager.getInstance().getOrCreateInstance(this.defaultMQProducer, this.rpcHook);
                 boolean registerOk = this.mqClientFactory.registerProducer(this.defaultMQProducer.getProducerGroup(), this);
 
                 if(!registerOk){

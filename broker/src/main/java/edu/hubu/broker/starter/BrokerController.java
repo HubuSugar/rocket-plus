@@ -98,7 +98,6 @@ public class BrokerController {
         this.subscriptionGroupManager = new SubscriptionGroupManager(this);
         this.brokerOutAPI = new BrokerOutAPI(nettyClientConfig);
 
-
         this.sendMessageThreadQueue = new LinkedBlockingQueue<>(brokerConfig.getSendMessageQueueCapacity());
         this.pullMessageThreadQueue = new LinkedBlockingQueue<>(brokerConfig.getPullThreadQueueCapacity());
         this.heartbeatThreadQueue = new LinkedBlockingQueue<>(brokerConfig.getHeartbeatThreadQueueCapacity());
@@ -118,7 +117,7 @@ public class BrokerController {
         this.pullMessageProcessor = new PullMessageProcessor(this);
     }
 
-    public void initialize(){
+    public boolean initialize(){
         //加载持久化的topicConfig配置
         boolean result = this.topicConfigManager.load();
 
@@ -135,8 +134,12 @@ public class BrokerController {
 
         if(result){
             this.nettyRemotingServer = new NettyRemotingServer(this.nettyServerConfig);
-            this.sendMessageThreadExecutor = new ThreadPoolExecutor(this.brokerConfig.getSendMessageThreadNums(),
-                    this.brokerConfig.getSendMessageThreadNums(), 1000 * 60, TimeUnit.MILLISECONDS, this.sendMessageThreadQueue);
+            this.sendMessageThreadExecutor = new ThreadPoolExecutor(
+                    this.brokerConfig.getSendMessageThreadNums(),
+                    this.brokerConfig.getSendMessageThreadNums(),
+                    1000 * 60,
+                    TimeUnit.MILLISECONDS,
+                    this.sendMessageThreadQueue);
 
             this.pullMessageExecutor = new ThreadPoolExecutor(
                     this.brokerConfig.getPullMessageThreadNums(),
@@ -152,6 +155,9 @@ public class BrokerController {
                     return new Thread(r, "consumerManagerThreadExecutor");
                 }
             });
+            //初始化注册processor
+            this.registerProcessor();
+
             this.adminBrokerExecutor = Executors.newFixedThreadPool(this.brokerConfig.getAdminBrokerThreadNums(), new ThreadFactory() {
                 @Override
                 public Thread newThread(Runnable r) {
@@ -172,17 +178,13 @@ public class BrokerController {
                     }
             );
 
-
-            //初始化注册processor
-            this.registerProcessor();
-
             if(this.brokerConfig.getNameSrvAddress() != null){
                 this.brokerOutAPI.updateNameSrvAddressList(this.brokerConfig.getNameSrvAddress());
             }else if(this.brokerConfig.isFetchNameSrvByAddressServer()){
                 //
             }
         }
-
+        return result;
     }
 
     /**

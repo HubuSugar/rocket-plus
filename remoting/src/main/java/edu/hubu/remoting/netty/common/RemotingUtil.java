@@ -1,4 +1,4 @@
-package edu.hubu.remoting.netty;
+package edu.hubu.remoting.netty.common;
 
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelFuture;
@@ -20,8 +20,8 @@ import java.util.Enumeration;
 public class RemotingUtil {
 
     private static final String OS_NAME = System.getProperty("os.name");
-    private static boolean isLinuxPlatform;
-    private static boolean isWindowsPlatform;
+    private static boolean isLinuxPlatform = false;
+    private static boolean isWindowsPlatform = false;
 
     public static boolean isLinuxPlatform(){
         return isLinuxPlatform;

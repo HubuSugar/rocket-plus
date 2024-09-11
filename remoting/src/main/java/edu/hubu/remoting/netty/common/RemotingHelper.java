@@ -1,4 +1,4 @@
-package edu.hubu.remoting.netty;
+package edu.hubu.remoting.netty.common;
 
 import io.netty.channel.Channel;
 
@@ -30,5 +30,16 @@ public class RemotingHelper {
         String host = address.substring(0, index);
         String port = address.substring(index + 1);
         return new InetSocketAddress(host, Integer.parseInt(port));
+    }
+
+    public static String parseSocketAddressAddr(SocketAddress socketAddress) {
+        if(socketAddress != null){
+            final String addr = socketAddress.toString();
+
+            if(addr.length() > 0){
+                return addr.substring(1);
+            }
+        }
+        return "";
     }
 }

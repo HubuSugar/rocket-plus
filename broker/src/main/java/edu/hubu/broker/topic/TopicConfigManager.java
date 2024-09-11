@@ -128,19 +128,20 @@ public class TopicConfigManager extends ConfigManager {
                             config.setTopicFilterType(defaultTopicConfig.getTopicFilterType());
 
                         }else{
-                            log.warn("created new topic failed, because the default topic has no perm");
+                            log.warn("created new topic failed, because the default topic [{}] has no perm [{}], producer: {}", defaultTopic, defaultTopicConfig.getPerm(), remoteAddr);
                         }
                     }else{
-                        log.warn("created new topic failed, because the default topic not exist");
+                        log.warn("created new topic failed, because the default topic [{}] not exist, producer: {}", defaultTopic, remoteAddr);
                     }
 
                     if(config != null){
-                        log.warn("created new topic :{} by default topic config: {}",topic, defaultTopicConfig);
+                        log.warn("created new topic :{} by default topic config: {}, producer: {}",topic, defaultTopicConfig, remoteAddr);
                         this.topicConfigTable.put(topic, config);
                         this.dataVersion.nextVersion();
                         createNew = true;
 
                         //持久化
+                        this.persist();
                     }
                 }finally {
                     topicConfigLock.unlock();

@@ -7,7 +7,8 @@ package edu.hubu.remoting.netty;
  */
 public class NettyServerConfig {
 
-    private int listenPort;
+    private int listenPort = 8888;
+    private int serverWorkThreads = 8;
     private int workThreadsNum = 8;
     private int sndBufSize = 10240;
     private int revBufSize = 10240;
@@ -15,6 +16,7 @@ public class NettyServerConfig {
     private int semaphoreOneway = 256;
     private int semaphoreAsync = 256;
     private int serverPublicThreads = 8;
+    private int serverChannelMaxIdleTimeSeconds = 120;
 
 
     public int getListenPort() {
@@ -79,5 +81,21 @@ public class NettyServerConfig {
 
     public void setServerPublicThreads(int serverPublicThreads) {
         this.serverPublicThreads = serverPublicThreads;
+    }
+
+    public int getServerWorkThreads() {
+        return serverWorkThreads;
+    }
+
+    public void setServerWorkThreads(int serverWorkThreads) {
+        this.serverWorkThreads = serverWorkThreads;
+    }
+
+    public int getServerChannelMaxIdleTimeSeconds() {
+        return serverChannelMaxIdleTimeSeconds;
+    }
+
+    public void setServerChannelMaxIdleTimeSeconds(int serverChannelMaxIdleTimeSeconds) {
+        this.serverChannelMaxIdleTimeSeconds = serverChannelMaxIdleTimeSeconds;
     }
 }

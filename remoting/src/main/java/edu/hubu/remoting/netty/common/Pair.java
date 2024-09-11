@@ -1,4 +1,4 @@
-package edu.hubu.remoting.netty.handler;
+package edu.hubu.remoting.netty.common;
 
 /**
  * @author: sugar

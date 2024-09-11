@@ -1,5 +1,7 @@
 package edu.hubu.remoting.netty.handler;
 
+import edu.hubu.remoting.netty.RemotingCommand;
+
 /**
  * @author: sugar
  * @date: 2023/5/19
@@ -7,8 +9,8 @@ package edu.hubu.remoting.netty.handler;
  */
 public interface RpcHook {
 
-    void doBeforeHook();
+    void doBeforeHook(final String remoteAddr, final RemotingCommand request);
 
-    void doAfterHook();
+    void doAfterHook(final String remoteAddr, final RemotingCommand request, final RemotingCommand response);
 
 }

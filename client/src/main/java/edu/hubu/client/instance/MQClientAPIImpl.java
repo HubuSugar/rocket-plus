@@ -10,6 +10,7 @@ import edu.hubu.client.impl.SendCallback;
 import edu.hubu.client.impl.TopicPublishInfo;
 import edu.hubu.client.impl.consumer.PullResultExt;
 import edu.hubu.client.impl.producer.DefaultMQProducerImpl;
+import edu.hubu.client.producer.ClientRemotingProcessor;
 import edu.hubu.client.producer.SendResult;
 import edu.hubu.client.producer.SendStatus;
 import edu.hubu.common.exception.broker.MQBrokerException;
@@ -29,8 +30,10 @@ import edu.hubu.common.protocol.heartbeat.HeartbeatData;
 import edu.hubu.common.protocol.request.RequestCode;
 import edu.hubu.common.protocol.route.TopicRouteData;
 import edu.hubu.common.utils.MixAll;
+import edu.hubu.common.utils.UtilAll;
 import edu.hubu.remoting.netty.*;
 import edu.hubu.remoting.netty.exception.*;
+import edu.hubu.remoting.netty.handler.RpcHook;
 import io.netty.util.internal.StringUtil;
 import lombok.extern.slf4j.Slf4j;
 
@@ -48,14 +51,19 @@ public class MQClientAPIImpl {
 
     private final RemotingClient remotingClient;
     private final NettyClientConfig nettyClientConfig;
-    private String nameServer;
+    private final ClientRemotingProcessor clientRemotingProcessor;
+    private String nameServer = null;
     //获取namespace
     private final ClientConfig clientConfig;
 
-    public MQClientAPIImpl(NettyClientConfig nettyClientConfig, ClientConfig clientConfig) {
-        this.nettyClientConfig = nettyClientConfig;
-        this.remotingClient = new NettyRemotingClient(nettyClientConfig);
+    public MQClientAPIImpl(final NettyClientConfig nettyClientConfig,
+                           final ClientRemotingProcessor clientRemotingProcessor,
+                           RpcHook rpcHook,
+                           final ClientConfig clientConfig) {
         this.clientConfig = clientConfig;
+        this.nettyClientConfig = nettyClientConfig;
+        this.remotingClient = new NettyRemotingClient(nettyClientConfig, null);
+        this.clientRemotingProcessor = clientRemotingProcessor;
     }
 
     public void start(){
@@ -148,7 +156,7 @@ public class MQClientAPIImpl {
 
         //reset topic without namespace
         String topic = message.getTopic();
-        if(!StringUtil.isNullOrEmpty(clientConfig.getNamespace())){
+        if(!UtilAll.isBlank(clientConfig.getNamespace())){
              //todo
             topic = "withoutNamespace";
         }

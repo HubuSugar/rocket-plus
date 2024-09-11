@@ -1,5 +1,8 @@
 package edu.hubu.remoting.netty;
 
+import edu.hubu.remoting.netty.common.Pair;
+import edu.hubu.remoting.netty.common.RemotingHelper;
+import edu.hubu.remoting.netty.common.ServiceThread;
 import edu.hubu.remoting.netty.exception.RemotingSendRequestException;
 import edu.hubu.remoting.netty.exception.RemotingTimeoutException;
 import edu.hubu.remoting.netty.handler.*;
@@ -10,10 +13,9 @@ import io.netty.channel.ChannelHandlerContext;
 import lombok.extern.slf4j.Slf4j;
 
 import java.util.HashMap;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.RejectedExecutionException;
-import java.util.concurrent.Semaphore;
+import java.util.Iterator;
+import java.util.Map;
+import java.util.concurrent.*;
 
 /**
  * @author: sugar
@@ -26,25 +28,31 @@ public abstract class NettyRemotingAbstract {
     protected final Semaphore semaphoreOneway;
     protected final Semaphore semaphoreAsync;
 
-    protected Pair<NettyRequestProcessor, ExecutorService> defaultProcessor;
-
     protected final ConcurrentHashMap<Integer, ResponseFuture> responseTable = new ConcurrentHashMap<>(256);
     protected final HashMap<Integer, Pair<NettyRequestProcessor, ExecutorService>> processTable = new HashMap<>(64);
+
+    protected final NettyEventExecutor nettyEventExecutor = new NettyEventExecutor();
+
+    protected Pair<NettyRequestProcessor, ExecutorService> defaultProcessor;
 
     public NettyRemotingAbstract(final int semaphoreOneway, final int semaphoreAsync) {
         this.semaphoreOneway = new Semaphore(semaphoreOneway, true);
         this.semaphoreAsync = new Semaphore(semaphoreAsync, true);
     }
 
+    public abstract ChannelEventListener getChannelEventListener();
+
+    public void putNettyEvent(final NettyEvent nettyEvent){
+        this.nettyEventExecutor.putNettyEvent(nettyEvent);
+    }
+
     public void dispatchCommand(ChannelHandlerContext context, RemotingCommand command) throws Exception{
         if(command == null) return;
         switch (command.getCommandType()){
             case REQUEST:
-                // log.info("【Request】command: {}", command);
                 processRequestCommand(context, command);
                 break;
             case RESPONSE:
-                // log.info("【Response】command: {}", command);
                 processResponseCommand(context, command);
                 break;
             default:
@@ -142,10 +150,57 @@ public abstract class NettyRemotingAbstract {
         }
     }
 
+    private void executeInvokeCallback(final ResponseFuture responseFuture){
+
+
+    }
+
+    /**
+     * This method specifics thread pool to use while invoking callback methods
+     * @return Dedicated thread pool instance if specified; or null the callback is supposed to be executed in netty event-loop thread
+     */
+    public abstract ExecutorService getCallbackExecutor();
+
+    public void scanResponseTable() {
+
+    }
+
+    private void requestFail(final int opaque){
+        ResponseFuture responseFuture = responseTable.remove(opaque);
+        if(responseFuture != null){
+            responseFuture.setSendRequestOk(false);
+            responseFuture.putResponse(null);
+
+            try{
+                executeInvokeCallback(responseFuture);
+            }catch (Throwable e){
+                log.error("execute callback in requestFail, and callback throwable", e);
+            }finally {
+                responseFuture.release();
+            }
+        }
+    }
+
+    /**
+     * mark the request of the specified channel as fail and to invoke fail callback immediately
+     * @param channel
+     */
+    protected void failFast(final Channel channel){
+        for (Map.Entry<Integer, ResponseFuture> entry : responseTable.entrySet()) {
+            if (entry.getValue().getProcessChannel() == channel) {
+                Integer opaque = entry.getKey();
+                if (opaque != null) {
+                    requestFail(opaque);
+                }
+            }
+        }
+    }
+
+
     public RemotingCommand invokeSyncImpl(final Channel channel, final RemotingCommand request, final long timeout) throws RemotingSendRequestException, InterruptedException, RemotingTimeoutException {
         int opaque = request.getOpaque();
         try{
-            final ResponseFuture responseFuture = new ResponseFuture(opaque, channel, null, timeout);
+            final ResponseFuture responseFuture = new ResponseFuture(opaque, channel, timeout, null, null);
             this.responseTable.put(opaque, responseFuture);
             channel.writeAndFlush(request).addListener(new ChannelFutureListener() {
                 @Override
@@ -180,7 +235,57 @@ public abstract class NettyRemotingAbstract {
 
     }
 
-    private void executeInvokeCallback(final ResponseFuture responseFuture){
+    @Slf4j
+    class NettyEventExecutor extends ServiceThread {
 
+        private final LinkedBlockingQueue<NettyEvent> eventQueue = new LinkedBlockingQueue<>();
+        private static final int maxSize = 10000;
+
+        public void putNettyEvent(final NettyEvent event){
+            if(eventQueue.size() <= maxSize){
+                this.eventQueue.add(event);
+            }else{
+                log.warn("event queue size[{}] is enough, so drop the event {}", eventQueue.size(), event);
+            }
+        }
+
+        @Override
+        public String getServiceName() {
+            return NettyEventExecutor.class.getSimpleName();
+        }
+
+        @Override
+        public void run() {
+            log.info(getServiceName() + "service started.");
+            final ChannelEventListener listener = NettyRemotingAbstract.this.getChannelEventListener();
+
+            while (!isStopped()){
+                try {
+                    NettyEvent event = this.eventQueue.poll(3000, TimeUnit.MILLISECONDS);
+                    if(event != null && listener != null){
+                        switch (event.getType()){
+                            case IDLE:
+                                listener.onChannelIdle(event.getRemoteAddr(), event.getChannel());
+                                break;
+                            case CLOSE:
+                                listener.onChannelClose(event.getRemoteAddr(), event.getChannel());
+                                break;
+                            case CONNECT:
+                                listener.onChannelConnect(event.getRemoteAddr(), event.getChannel());
+                                break;
+                            case EXCEPTION:
+                                listener.onChannelException(event.getRemoteAddr(), event.getChannel());
+                                break;
+                            default:
+                                break;
+                        }
+                    }
+                } catch (Exception e) {
+                    log.warn(this.getServiceName() + " has exception", e);
+                }
+            }
+
+
+        }
     }
 }

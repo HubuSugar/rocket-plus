@@ -1,9 +1,8 @@
 package edu.hubu.common;
 
-import edu.hubu.common.PermName;
 import edu.hubu.common.utils.MixAll;
 import edu.hubu.common.utils.NameServerAddressUtil;
-import edu.hubu.remoting.netty.RemotingUtil;
+import edu.hubu.remoting.netty.common.RemotingUtil;
 import lombok.extern.slf4j.Slf4j;
 
 import java.net.InetAddress;

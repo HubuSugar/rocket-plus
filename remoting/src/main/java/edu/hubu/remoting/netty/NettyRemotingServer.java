@@ -2,8 +2,12 @@ package edu.hubu.remoting.netty;
 
 import edu.hubu.remoting.netty.codec.NettyDecoder;
 import edu.hubu.remoting.netty.codec.NettyEncoder;
+import edu.hubu.remoting.netty.common.RemotingHelper;
+import edu.hubu.remoting.netty.common.RemotingUtil;
+import edu.hubu.remoting.netty.handler.NettyEvent;
+import edu.hubu.remoting.netty.handler.NettyEventType;
 import edu.hubu.remoting.netty.handler.NettyRequestProcessor;
-import edu.hubu.remoting.netty.handler.Pair;
+import edu.hubu.remoting.netty.common.Pair;
 import edu.hubu.remoting.netty.handler.RpcHook;
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.buffer.PooledByteBufAllocator;
@@ -11,13 +15,17 @@ import io.netty.channel.*;
 import io.netty.channel.epoll.EpollEventLoopGroup;
 import io.netty.channel.epoll.EpollServerSocketChannel;
 import io.netty.channel.nio.NioEventLoopGroup;
-import io.netty.channel.socket.ServerSocketChannel;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.channel.socket.nio.NioServerSocketChannel;
+import io.netty.handler.timeout.IdleState;
+import io.netty.handler.timeout.IdleStateEvent;
+import io.netty.handler.timeout.IdleStateHandler;
+import io.netty.util.concurrent.DefaultEventExecutorGroup;
 import lombok.extern.slf4j.Slf4j;
 
 import java.net.InetSocketAddress;
-import java.net.SocketAddress;
+import java.util.Timer;
+import java.util.TimerTask;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadFactory;
@@ -39,9 +47,13 @@ public class NettyRemotingServer extends NettyRemotingAbstract implements Remoti
     private final ExecutorService publicExecutor;
     private final ChannelEventListener channelEventListener;
 
+    private final Timer timer = new Timer("ServerHouseKeepingService", true);
+    private DefaultEventExecutorGroup defaultEventExecutorGroup;
+
+    private int port = 0;
     private ServerHandler serverHandler;
     private NettyEncoder nettyEncoder;
-    private int port = 0;
+    private NettyConnectManageHandler connectManageHandler;
 
     public NettyRemotingServer(final NettyServerConfig nettyServerConfig) {
         this(nettyServerConfig, null);
@@ -99,6 +111,17 @@ public class NettyRemotingServer extends NettyRemotingAbstract implements Remoti
 
     @Override
     public void start(){
+        this.defaultEventExecutorGroup = new DefaultEventExecutorGroup(
+                nettyServerConfig.getServerWorkThreads(),
+                new ThreadFactory() {
+                    private final AtomicInteger threadIndex = new AtomicInteger(0);
+
+                    @Override
+                    public Thread newThread(Runnable r) {
+                        return new Thread(r, "NettyServerCodecThreads_" + this.threadIndex.incrementAndGet());
+                    }
+                });
+
         prepareSharableHandlers();
 
         ServerBootstrap bootstrap = this.serverBootstrap.group(eventLoopGroupBoss, eventLoopGroupWorker)
@@ -114,7 +137,13 @@ public class NettyRemotingServer extends NettyRemotingAbstract implements Remoti
                     @Override
                     protected void initChannel(SocketChannel channel) throws Exception {
                         ChannelPipeline pipeline = channel.pipeline();
-                        pipeline.addLast(nettyEncoder, new NettyDecoder(), serverHandler);
+                        pipeline.addLast(
+                                defaultEventExecutorGroup,
+                                nettyEncoder,
+                                new NettyDecoder(),
+                                new IdleStateHandler(0, 0, nettyServerConfig.getServerChannelMaxIdleTimeSeconds()),
+                                serverHandler
+                        );
 
                     }
                 });
@@ -124,12 +153,27 @@ public class NettyRemotingServer extends NettyRemotingAbstract implements Remoti
 
         try {
             ChannelFuture sync = bootstrap.bind().sync();
-            SocketAddress socketAddress = sync.channel().localAddress();
-            this.port =((InetSocketAddress)socketAddress).getPort();
+            InetSocketAddress socketAddress = (InetSocketAddress) sync.channel().localAddress();
+            this.port = socketAddress.getPort();
         } catch (InterruptedException e) {
             log.error("exception", e);
+            throw new RuntimeException("this.serverBootstrap.bind().sync() InterruptedException", e);
         }
 
+        if(this.channelEventListener != null){
+            this.nettyEventExecutor.start();
+        }
+
+        this.timer.scheduleAtFixedRate(new TimerTask() {
+            @Override
+            public void run() {
+                try{
+                    NettyRemotingServer.this.scanResponseTable();
+                }catch (Exception e){
+                    log.error("scanResponseTable exception", e);
+                }
+            }
+        }, 1000 * 3, 1000);
     }
 
     private void prepareSharableHandlers(){
@@ -178,8 +222,14 @@ public class NettyRemotingServer extends NettyRemotingAbstract implements Remoti
         return nettyServerConfig;
     }
 
+    @Override
     public ChannelEventListener getChannelEventListener() {
         return channelEventListener;
+    }
+
+    @Override
+    public ExecutorService getCallbackExecutor() {
+        return this.publicExecutor;
     }
 
     public int getPort() {
@@ -191,6 +241,77 @@ public class NettyRemotingServer extends NettyRemotingAbstract implements Remoti
         @Override
         protected void channelRead0(ChannelHandlerContext channelHandlerContext, RemotingCommand remotingCommand) throws Exception {
             dispatchCommand(channelHandlerContext, remotingCommand);
+        }
+    }
+
+    @ChannelHandler.Sharable
+    class NettyConnectManageHandler extends ChannelDuplexHandler{
+
+        @Override
+        public void channelRegistered(ChannelHandlerContext ctx) throws Exception {
+            final String remoteAddress = RemotingHelper.parseChannel2RemoteAddress(ctx.channel());
+            log.info("NETTY SERVER PIPELINE: channelRegister {}", remoteAddress);
+            super.channelRegistered(ctx);
+        }
+
+        @Override
+        public void channelUnregistered(ChannelHandlerContext ctx) throws Exception {
+            final String remoteAddress = RemotingHelper.parseChannel2RemoteAddress(ctx.channel());
+            log.info("NETTY SERVER PIPELINE: channelUnregistered {}", remoteAddress);
+            super.channelUnregistered(ctx);
+        }
+
+        @Override
+        public void channelActive(ChannelHandlerContext ctx) throws Exception {
+            final String remoteAddress = RemotingHelper.parseChannel2RemoteAddress(ctx.channel());
+            log.info("NETTY SERVER PIPELINE: channelActive {}", remoteAddress);
+            super.channelActive(ctx);
+
+            if(NettyRemotingServer.this.channelEventListener != null){
+                NettyRemotingServer.this.putNettyEvent(new NettyEvent(NettyEventType.CONNECT, remoteAddress, ctx.channel()));
+            }
+        }
+
+        @Override
+        public void channelInactive(ChannelHandlerContext ctx) throws Exception {
+            final String remoteAddress = RemotingHelper.parseChannel2RemoteAddress(ctx.channel());
+            log.info("NETTY SERVER PIPELINE: channelInactive {}", remoteAddress);
+            super.channelInactive(ctx);
+
+            if(NettyRemotingServer.this.channelEventListener != null){
+                NettyRemotingServer.this.putNettyEvent(new NettyEvent(NettyEventType.CLOSE, remoteAddress, ctx.channel()));
+            }
+        }
+
+        @Override
+        public void userEventTriggered(ChannelHandlerContext ctx, Object evt) throws Exception {
+            if (evt instanceof IdleStateEvent) {
+                IdleStateEvent event = (IdleStateEvent) evt;
+                if (event.state().equals(IdleState.ALL_IDLE)) {
+                    final String remoteAddress = RemotingHelper.parseChannel2RemoteAddress(ctx.channel());
+                    log.warn("NETTY SERVER PIPELINE: IDLE exception [{}]", remoteAddress);
+                    RemotingUtil.closeChannel(ctx.channel());
+                    if (NettyRemotingServer.this.channelEventListener != null) {
+                        NettyRemotingServer.this
+                                .putNettyEvent(new NettyEvent(NettyEventType.IDLE, remoteAddress, ctx.channel()));
+                    }
+                }
+            }
+
+            ctx.fireUserEventTriggered(evt);
+        }
+
+        @Override
+        public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) throws Exception {
+            final String remoteAddress = RemotingHelper.parseChannel2RemoteAddress(ctx.channel());
+            log.warn("NETTY SERVER PIPELINE: exceptionCaught {}", remoteAddress);
+            log.warn("NETTY SERVER PIPELINE: exceptionCaught exception.", cause);
+
+            if (NettyRemotingServer.this.channelEventListener != null) {
+                NettyRemotingServer.this.putNettyEvent(new NettyEvent(NettyEventType.EXCEPTION, remoteAddress, ctx.channel()));
+            }
+
+            RemotingUtil.closeChannel(ctx.channel());
         }
     }
 }

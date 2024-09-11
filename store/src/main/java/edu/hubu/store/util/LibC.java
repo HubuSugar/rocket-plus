@@ -2,7 +2,7 @@ package edu.hubu.store.util;
 
 
 import com.sun.jna.*;
-import edu.hubu.remoting.netty.RemotingUtil;
+import edu.hubu.remoting.netty.common.RemotingUtil;
 
 /**
  * @author: sugar

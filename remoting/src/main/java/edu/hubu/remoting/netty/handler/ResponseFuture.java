@@ -2,6 +2,7 @@ package edu.hubu.remoting.netty.handler;
 
 import edu.hubu.remoting.netty.InvokeCallback;
 import edu.hubu.remoting.netty.RemotingCommand;
+import edu.hubu.remoting.netty.common.SemaphoreReleaseOnlyOnce;
 import io.netty.channel.Channel;
 
 import java.util.concurrent.CountDownLatch;
@@ -20,17 +21,18 @@ public class ResponseFuture {
     private final long timeoutMillis;
     private final CountDownLatch countDownLatch = new CountDownLatch(1);
 
-    // private final SemaphoreReleaseOnlyOnce once;
+    private final SemaphoreReleaseOnlyOnce once;
 
     private volatile RemotingCommand responseCommand;
-    private volatile boolean sendRequestOk;
+    private volatile boolean sendRequestOk = true;
     private volatile Throwable cause;
 
-    public ResponseFuture(int opaque, Channel processChannel, InvokeCallback callback, long timeoutMillis) {
+    public ResponseFuture(int opaque, Channel processChannel, long timeoutMillis, InvokeCallback callback, SemaphoreReleaseOnlyOnce once) {
         this.opaque = opaque;
         this.processChannel = processChannel;
         this.callback = callback;
         this.timeoutMillis = timeoutMillis;
+        this.once = once;
     }
 
     public RemotingCommand waitResponse(final long timeoutMillis) throws InterruptedException {
@@ -44,9 +46,9 @@ public class ResponseFuture {
     }
 
     public void release(){
-        // if(once != null){
-        //     this.once.release();
-        // }
+        if(once != null){
+            this.once.release();
+        }
     }
 
     public int getOpaque() {

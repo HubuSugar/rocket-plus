@@ -21,14 +21,13 @@ public class BrokerStarter {
 
     public static BrokerController createController(String[] args){
 
-        NettyClientConfig nettyClientConfig = new NettyClientConfig();
+        final BrokerConfig brokerConfig = new BrokerConfig();
+        final NettyServerConfig nettyServerConfig = new NettyServerConfig();
+        final NettyClientConfig nettyClientConfig = new NettyClientConfig();
 
-        NettyServerConfig nettyServerConfig = new NettyServerConfig();
-        nettyServerConfig.setListenPort(10921);
+        nettyServerConfig.setListenPort(10920);
 
-        BrokerConfig brokerConfig = new BrokerConfig();
-
-        MessageStoreConfig messageStoreConfig = new MessageStoreConfig();
+        final MessageStoreConfig messageStoreConfig = new MessageStoreConfig();
 
         BrokerController brokerController = new BrokerController(brokerConfig, nettyServerConfig, nettyClientConfig, messageStoreConfig);
         brokerController.initialize();

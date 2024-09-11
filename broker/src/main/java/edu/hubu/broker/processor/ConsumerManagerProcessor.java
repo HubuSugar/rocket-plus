@@ -7,7 +7,7 @@ import edu.hubu.common.protocol.body.GetConsumerIdListByGroupResponseBody;
 import edu.hubu.common.protocol.header.response.GetConsumerIdListByGroupResponseHeader;
 import edu.hubu.common.protocol.request.RequestCode;
 import edu.hubu.remoting.netty.RemotingCommand;
-import edu.hubu.remoting.netty.RemotingHelper;
+import edu.hubu.remoting.netty.common.RemotingHelper;
 import edu.hubu.remoting.netty.ResponseCode;
 import edu.hubu.remoting.netty.handler.AsyncNettyRequestProcessor;
 import edu.hubu.remoting.netty.handler.NettyRequestProcessor;

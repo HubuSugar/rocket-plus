@@ -1,7 +1,7 @@
 package edu.hubu.remoting.netty.codec;
 
 import edu.hubu.remoting.netty.RemotingCommand;
-import edu.hubu.remoting.netty.RemotingUtil;
+import edu.hubu.remoting.netty.common.RemotingUtil;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.codec.LengthFieldBasedFrameDecoder;
