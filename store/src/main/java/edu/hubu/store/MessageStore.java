@@ -28,7 +28,7 @@ public interface MessageStore {
 
     void cleanExpiredConsumeQueue();
 
-    long getMaxOffsetInQueue(String topic, Integer queueId);
+    long getMaxOffsetInQueue(String topic, int queueId);
 
     /**
      * Query at most <code>maxMsgNums</code>

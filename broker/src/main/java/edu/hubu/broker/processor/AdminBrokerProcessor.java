@@ -9,6 +9,7 @@ import edu.hubu.common.protocol.header.response.GetMaxOffsetResponseHeader;
 import edu.hubu.common.protocol.request.RequestCode;
 import edu.hubu.remoting.netty.RemotingCommand;
 import edu.hubu.remoting.netty.ResponseCode;
+import edu.hubu.remoting.netty.exception.RemotingCommandException;
 import edu.hubu.remoting.netty.handler.AsyncNettyRequestProcessor;
 import edu.hubu.remoting.netty.handler.NettyRequestProcessor;
 import io.netty.channel.ChannelHandlerContext;
@@ -42,7 +43,7 @@ public class AdminBrokerProcessor extends AsyncNettyRequestProcessor implements 
     }
 
 
-    private RemotingCommand getMaxOffset(ChannelHandlerContext ctx, RemotingCommand request){
+    private RemotingCommand getMaxOffset(ChannelHandlerContext ctx, RemotingCommand request) throws RemotingCommandException {
         final RemotingCommand response = RemotingCommand.createResponseCommand(GetMaxOffsetResponseHeader.class);
         final GetMaxOffsetResponseHeader responseHeader = (GetMaxOffsetResponseHeader) response.readCustomHeader();
 

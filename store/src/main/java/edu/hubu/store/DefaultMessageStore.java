@@ -335,7 +335,11 @@ public class DefaultMessageStore implements MessageStore {
     }
 
     @Override
-    public long getMaxOffsetInQueue(String topic, Integer queueId) {
+    public long getMaxOffsetInQueue(String topic, int queueId) {
+        ConsumeQueue logic = this.findConsumeQueue(topic, queueId);
+        if(logic != null){
+            return logic.getMaxOffsetInQueue();
+        }
         return 0;
     }
 
@@ -519,7 +523,7 @@ public class DefaultMessageStore implements MessageStore {
         if (this.getMessageStoreConfig().getBrokerRole() != BrokerRole.SLAVE || this.getMessageStoreConfig().isCheckOffsetInSlave()) {
             nextOffset = newOffset;
         }
-        return newOffset;
+        return nextOffset;
     }
 
     public void doDispatch(DispatchRequest request) {

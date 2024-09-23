@@ -9,6 +9,7 @@ import edu.hubu.common.protocol.request.RequestCode;
 import edu.hubu.remoting.netty.RemotingCommand;
 import edu.hubu.remoting.netty.common.RemotingHelper;
 import edu.hubu.remoting.netty.ResponseCode;
+import edu.hubu.remoting.netty.exception.RemotingCommandException;
 import edu.hubu.remoting.netty.handler.AsyncNettyRequestProcessor;
 import edu.hubu.remoting.netty.handler.NettyRequestProcessor;
 import io.netty.channel.ChannelHandlerContext;
@@ -47,7 +48,7 @@ public class ConsumerManagerProcessor extends AsyncNettyRequestProcessor impleme
      * @param request
      * @return
      */
-    private RemotingCommand getConsumerListByGroup(ChannelHandlerContext ctx, RemotingCommand request){
+    private RemotingCommand getConsumerListByGroup(ChannelHandlerContext ctx, RemotingCommand request) throws RemotingCommandException {
         final GetConsumerIdListByGroupRequestHeader requestHeader = (GetConsumerIdListByGroupRequestHeader) request.decodeCustomCommandHeader(GetConsumerIdListByGroupRequestHeader.class);
         final RemotingCommand response = RemotingCommand.createResponseCommand(GetConsumerIdListByGroupResponseHeader.class);
 

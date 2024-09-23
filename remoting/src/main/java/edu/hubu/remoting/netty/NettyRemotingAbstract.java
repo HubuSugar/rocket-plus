@@ -235,7 +235,7 @@ public abstract class NettyRemotingAbstract {
 
     }
 
-    @Slf4j
+
     class NettyEventExecutor extends ServiceThread {
 
         private final LinkedBlockingQueue<NettyEvent> eventQueue = new LinkedBlockingQueue<>();

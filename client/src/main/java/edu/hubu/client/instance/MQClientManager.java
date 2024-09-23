@@ -17,7 +17,7 @@ public class MQClientManager {
     private static final MQClientManager instance = new MQClientManager();
     private final AtomicInteger factoryIndexGenerator = new AtomicInteger();
     //<clientId, Instance>
-    private ConcurrentHashMap<String, MQClientInstance> factoryTable = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<String, MQClientInstance> factoryTable = new ConcurrentHashMap<>();
 
     private MQClientManager(){
 
@@ -31,16 +31,16 @@ public class MQClientManager {
         return getOrCreateInstance(clientConfig, null);
     }
 
-    public MQClientInstance getOrCreateInstance(final ClientConfig clientConfig, RpcHook rpcHook){
+    public MQClientInstance getOrCreateInstance(final ClientConfig clientConfig, RpcHook rpcHook) {
         String clientId = clientConfig.buildMQClientId();
         MQClientInstance clientInstance = factoryTable.get(clientId);
-        if(clientInstance == null){
+        if (clientInstance == null) {
             clientInstance = new MQClientInstance(clientConfig.cloneClientConfig(), factoryIndexGenerator.getAndIncrement(), clientId, rpcHook);
             MQClientInstance prev = factoryTable.putIfAbsent(clientId, clientInstance);
-            if(prev != null){
-              clientInstance = prev;
-              log.warn("Returned the previous MQClientInstance for clientId: {}", clientId);
-            }else{
+            if (prev != null) {
+                clientInstance = prev;
+                log.warn("Returned the previous MQClientInstance for clientId: {}", clientId);
+            } else {
                 log.info("create new MQClientInstance for the clientId: {}", clientId);
             }
         }

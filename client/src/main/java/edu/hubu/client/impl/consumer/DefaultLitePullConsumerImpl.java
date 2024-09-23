@@ -122,6 +122,10 @@ public class DefaultLitePullConsumerImpl implements MQConsumerInner{
 
                 this.serviceState = ServiceState.START_FAILED;
 
+                if (this.defaultLitePullConsumer.getMessageModel() == MessageModel.CLUSTERING) {
+                    this.defaultLitePullConsumer.changeInstanceNameToPID();
+                }
+
                 //客户端工厂
                 this.initMQClientFactory();
 
@@ -612,7 +616,7 @@ public class DefaultLitePullConsumerImpl implements MQConsumerInner{
         long timeoutMillis = block ? this.defaultLitePullConsumer.getConsumerTimeoutMillisWhenSuspend() : timeout;
 
         boolean isTagType = ExpressionType.isTagType(subscriptionData.getExpressionType());
-        PullResult pullResult = this.pullAPIWrapper.pullKernelImpl(
+          PullResult pullResult = this.pullAPIWrapper.pullKernelImpl(
                 mq,
                 subscriptionData.getSubString(),
                 subscriptionData.getExpressionType(),

@@ -603,7 +603,10 @@ public class MQClientInstance {
         return heartbeatData;
     }
 
-    public FindBrokerResult findBrokerAddressInSubscribe(String brokerName, long brokerId, boolean onlyThisBroker) {
+    public FindBrokerResult findBrokerAddressInSubscribe(
+            final String brokerName,
+            final long brokerId,
+            final boolean onlyThisBroker) {
         String brokerAddr = null;
         boolean slave = false;
         boolean found = false;
@@ -629,8 +632,13 @@ public class MQClientInstance {
         return null;
     }
 
-    public int findBrokerVersion(String brokerName, String brokerAddr){
-
+    public int findBrokerVersion(String brokerName, String brokerAddr) {
+        if (brokerVersionTable.containsKey(brokerName)) {
+            if (this.brokerVersionTable.get(brokerName).containsKey(brokerAddr)) {
+                return this.brokerVersionTable.get(brokerName).get(brokerAddr);
+            }
+        }
+        //to do need to fresh the version
         return 0;
     }
 

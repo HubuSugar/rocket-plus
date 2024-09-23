@@ -1,4 +1,4 @@
-package edu.hubu.namesrv.impl;
+package edu.hubu.namesrv.routeInfo;
 
 import edu.hubu.common.DataVersion;
 import edu.hubu.common.TopicConfig;
@@ -8,11 +8,11 @@ import edu.hubu.common.protocol.route.BrokerData;
 import edu.hubu.common.protocol.route.QueueData;
 import edu.hubu.common.protocol.route.TopicRouteData;
 import edu.hubu.common.utils.MixAll;
-import edu.hubu.namesrv.routeInfo.BrokerLiveInfo;
 import io.netty.channel.Channel;
 import lombok.extern.slf4j.Slf4j;
 
 import java.util.*;
+import java.util.Map.Entry;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
@@ -249,5 +249,118 @@ public class TopicRouteInfoManager {
         if(brokerLiveInfo != null){
             brokerLiveInfo.setLastUpdateTimestamp(System.currentTimeMillis());
         }
+    }
+
+    public void onChannelDestroy(String remoteAddress, Channel channel) {
+        String brokerAddrFound = null;
+        if(channel != null){
+            try {
+                try{
+                    this.lock.readLock().lockInterruptibly();
+                    Iterator<Map.Entry<String, BrokerLiveInfo>> brokerAliveTableIt
+                            = this.brokerLiveTable.entrySet().iterator();
+                    while (brokerAliveTableIt.hasNext()){
+                        Map.Entry<String, BrokerLiveInfo> entry = brokerAliveTableIt.next();
+                        if (entry.getValue().getChannel() == channel) {
+                            brokerAddrFound = remoteAddress;
+                            break;
+                        }
+                    }
+                }finally {
+                    this.lock.readLock().unlock();
+                }
+            } catch (Exception e) {
+                log.error("onChannelDestroy exception", e);
+            }
+        }
+
+        if(brokerAddrFound == null){
+            brokerAddrFound = remoteAddress;
+        }else{
+            log.info("the broker's channel is destroyed, clean it`s data at once, {}", brokerAddrFound);
+        }
+
+        if(brokerAddrFound != null && brokerAddrFound.length() > 0){
+            try {
+                try{
+                    this.lock.writeLock().lockInterruptibly();
+                    this.brokerLiveTable.remove(brokerAddrFound);
+                    this.filterServerTable.remove(brokerAddrFound);
+                    String brokerNameFound = null;
+                    boolean removeBrokerName = false;
+                    Iterator<Entry<String, BrokerData>> brokerAddrIt = this.brokerAddressTable.entrySet().iterator();
+                    while (brokerAddrIt.hasNext() && (brokerNameFound == null)){
+                        BrokerData brokerData = brokerAddrIt.next().getValue();
+                        Iterator<Entry<Long, String>> brokerDataIt = brokerData.getBrokerAddrTable().entrySet().iterator();
+                        while (brokerDataIt.hasNext()) {
+                            Entry<Long, String> entry = brokerDataIt.next();
+                            Long brokerId = entry.getKey();
+                            String brokerAddr = entry.getValue();
+                            if(brokerAddr.equals(brokerAddrFound)){
+                                brokerNameFound = brokerData.getBrokerName();
+                                brokerDataIt.remove();
+                                log.info("remove brokerAddr[{},{}] from brokerAddrTable, because channel destroyed", brokerId, brokerAddr);
+                                break;
+                            }
+                        }
+
+                        if(brokerData.getBrokerAddrTable().isEmpty()){
+                            removeBrokerName = true;
+                            brokerAddrIt.remove();
+                            log.info("remove brokerName[{}] from brokerAddrTable, because channel destroyed", brokerData.getBrokerName());
+                        }
+                    }
+
+                    if(brokerNameFound != null && removeBrokerName){
+                        Iterator<Entry<String, Set<String>>> clusterIt = this.clusterTable.entrySet().iterator();
+                        while (clusterIt.hasNext()) {
+                            Entry<String, Set<String>> entry = clusterIt.next();
+                            String clusterName = entry.getKey();
+                            Set<String> brokerNames = entry.getValue();
+                            boolean removed = brokerNames.remove(brokerNameFound);
+                            if(removed){
+                                log.info("remove brokerName[{}] clusterName[{}] from clusterAddrTable, because channel destroyed",
+                                        brokerNameFound, clusterName);
+                                if(brokerNames.isEmpty()){
+                                    log.info("remove clusterName[{}] from clusterAddrTable, because channel destroyed and no broker in cluster", clusterName);
+                                    clusterIt.remove();
+                                }
+                                break;
+                            }
+                        }
+                    }
+
+                    if(removeBrokerName){
+                        Iterator<Entry<String, List<QueueData>>> topicQueueIt = this.topicQueueTable.entrySet().iterator();
+                        while (topicQueueIt.hasNext()) {
+                            Entry<String, List<QueueData>> entry = topicQueueIt.next();
+                            String topic = entry.getKey();
+                            List<QueueData> queues = entry.getValue();
+
+                            Iterator<QueueData> queueIt = queues.iterator();
+                            while (queueIt.hasNext()){
+                                QueueData queueData = queueIt.next();
+                                if(queueData.getBrokerName().equals(brokerNameFound)){
+                                    log.info("remove topic[{}, {}] from topicQueueTable, because channel destroyed", topic, queueData);
+                                    queueIt.remove();
+                                }
+                            }
+
+                            if(queues.isEmpty()){
+                                topicQueueIt.remove();
+                                log.info("remove topic[{}] all queue from topicQueueTable, because channel destroyed", topic);
+                            }
+
+                        }
+                    }
+
+                }finally {
+                    this.lock.writeLock().unlock();
+                }
+            } catch (InterruptedException e) {
+                log.error("onDestroy exception", e);
+            }
+        }
+
     }
 }

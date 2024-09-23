@@ -7,6 +7,7 @@ import edu.hubu.common.protocol.SendMessageRequestHeader;
 import edu.hubu.remoting.netty.RemotingCommand;
 import edu.hubu.remoting.netty.common.RemotingHelper;
 import edu.hubu.remoting.netty.ResponseCode;
+import edu.hubu.remoting.netty.exception.RemotingCommandException;
 import edu.hubu.remoting.netty.handler.AsyncNettyRequestProcessor;
 import edu.hubu.remoting.netty.handler.NettyRequestProcessor;
 import io.netty.channel.ChannelHandlerContext;
@@ -39,7 +40,7 @@ public abstract class AbstractSendMessageProcessor extends AsyncNettyRequestProc
      * @param request
      * @return
      */
-    protected SendMessageRequestHeader parseRequestHeader(RemotingCommand request){
+    protected SendMessageRequestHeader parseRequestHeader(RemotingCommand request) throws RemotingCommandException {
         return (SendMessageRequestHeader) request.decodeCustomCommandHeader(SendMessageRequestHeader.class);
     }
 

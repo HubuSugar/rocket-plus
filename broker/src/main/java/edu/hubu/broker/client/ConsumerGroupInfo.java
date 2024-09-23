@@ -128,6 +128,14 @@ public class ConsumerGroupInfo {
         return updated;
     }
 
+    public boolean doChannelCloseEvent(String remoteAddress, Channel channel) {
+        final ClientChannelInfo info = this.channelInfoTable.remove(channel);
+        if(info != null){
+            log.warn("NETTY EVENT remove not active channel[{}], from consumerGroupInfo groupChannelTable, consumer group:{}", remoteAddress, groupName);
+            return true;
+        }
+        return false;
+    }
 
     public String getGroupName() {
         return groupName;

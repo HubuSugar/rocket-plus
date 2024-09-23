@@ -114,7 +114,7 @@ public class RemotingCommand {
         }
     }
 
-    public CustomCommandHeader decodeCustomCommandHeader(Class<? extends CustomCommandHeader> clazz){
+    public CustomCommandHeader decodeCustomCommandHeader(Class<? extends CustomCommandHeader> clazz) throws RemotingCommandException{
         CustomCommandHeader objectHeader = null;
         try {
             objectHeader = clazz.newInstance();
@@ -162,6 +162,7 @@ public class RemotingCommand {
                 }
             }
 
+            objectHeader.checkFields();
         }
 
         return objectHeader;

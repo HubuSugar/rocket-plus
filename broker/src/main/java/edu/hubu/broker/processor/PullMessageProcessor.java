@@ -25,8 +25,10 @@ import edu.hubu.common.utils.MixAll;
 import edu.hubu.remoting.netty.RemotingCommand;
 import edu.hubu.remoting.netty.common.RemotingHelper;
 import edu.hubu.remoting.netty.ResponseCode;
+import edu.hubu.remoting.netty.exception.RemotingCommandException;
 import edu.hubu.remoting.netty.handler.AsyncNettyRequestProcessor;
 import edu.hubu.remoting.netty.handler.NettyRequestProcessor;
+import edu.hubu.remoting.netty.handler.RequestTask;
 import edu.hubu.store.GetMessageResult;
 import edu.hubu.store.MessageFilter;
 import edu.hubu.store.config.BrokerRole;
@@ -61,7 +63,7 @@ public class PullMessageProcessor extends AsyncNettyRequestProcessor implements 
         return false;
     }
 
-    private RemotingCommand processRequest(final Channel channel, final RemotingCommand request, final boolean brokerAllowSuspend) {
+    private RemotingCommand processRequest(final Channel channel, final RemotingCommand request, final boolean brokerAllowSuspend) throws RemotingCommandException {
         RemotingCommand response = RemotingCommand.createResponseCommand(PullMessageResponseHeader.class);
         final PullMessageResponseHeader responseHeader = (PullMessageResponseHeader) response.readCustomHeader();
         final PullMessageRequestHeader requestHeader = (PullMessageRequestHeader) request.decodeCustomCommandHeader(PullMessageRequestHeader.class);
@@ -236,7 +238,12 @@ public class PullMessageProcessor extends AsyncNettyRequestProcessor implements 
                 case NO_MESSAGE_IN_QUEUE:
                     if (requestHeader.getQueueOffset() != 0) {
                         response.setCode(ResponseCode.PULL_OFFSET_MOVED);
-                        log.warn("");
+                        log.info("the broker store no queue data, fix the request offset {} to {}, topic:{} queueId:{}, consumer group:{}",
+                                requestHeader.getQueueOffset(),
+                                getMessageResult.getNextBeginOffset(),
+                                requestHeader.getTopic(),
+                                requestHeader.getQueueId(),
+                                requestHeader.getConsumerGroup());
                     } else {
                         response.setCode(ResponseCode.PULL_NOT_FOUND);
                     }
@@ -261,14 +268,11 @@ public class PullMessageProcessor extends AsyncNettyRequestProcessor implements 
 
             switch (response.getCode()) {
                 case ResponseCode.SUCCESS:
-                    //统计
-
-
+                    //统计 todo
                     //通过堆内存
                     if (this.brokerController.getBrokerConfig().isTransferMsgByHeap()) {
                         final long beginTimeMillis = System.currentTimeMillis();
                         final byte[] r = this.readGetMessageResult(getMessageResult, requestHeader.getConsumerGroup(), requestHeader.getTopic(), requestHeader.getQueueId());
-
                         //统计
                         response.setBody(r);
                     } else {
@@ -415,7 +419,39 @@ public class PullMessageProcessor extends AsyncNettyRequestProcessor implements 
         return buffer.array();
     }
 
-    public void executeRequestWhenWakeUp(final Channel channel, RemotingCommand request) {
+    public void executeRequestWhenWakeUp(final Channel channel, final RemotingCommand request) {
+        Runnable r = new Runnable(){
+            @Override
+            public void run() {
+                try {
+                    RemotingCommand response = PullMessageProcessor.this.processRequest(channel, request, false);
+                    if(response != null){
+                        response.setOpaque(request.getOpaque());
+                        response.markResponseType();
 
+                        try{
+                            channel.writeAndFlush(response).addListener(new ChannelFutureListener() {
+                                @Override
+                                public void operationComplete(ChannelFuture future) throws Exception {
+                                    if(!future.isSuccess()){
+                                        log.error("processRequestWrapper response to {} failed", future.channel().remoteAddress(), future.cause());
+                                        log.error(request.toString());
+                                        log.error(response.toString());
+                                    }
+                                }
+                            });
+                        }catch (Throwable e){
+                            log.error("processRequestWrapper process request over, but response failed", e);
+                            log.error(request.toString());
+                            log.error(response.toString());
+                        }
+                    }
+                } catch (RemotingCommandException e) {
+                    log.error("executeRequestWhenWakeup run", e);
+                }
+            }
+        };
+
+        this.brokerController.getPullMessageExecutor().submit(new RequestTask(r, channel, request));
     }
 }

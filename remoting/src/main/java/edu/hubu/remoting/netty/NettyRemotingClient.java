@@ -167,7 +167,7 @@ public class NettyRemotingClient extends NettyRemotingAbstract implements Remoti
             if (updated) {
                 Collections.shuffle(address);
                 this.nameSrvAddressList.set(address);
-                log.warn("name srv address has updated");
+                log.warn("name srv address has updated,NEW: {}, OLD:{}", address, old);
 
                 if (!address.contains(this.nameSrvAddressChosen.get())) {
                     this.nameSrvAddressChosen.set(null);

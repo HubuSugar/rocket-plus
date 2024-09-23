@@ -2,6 +2,7 @@ package edu.hubu.broker.out;
 
 import edu.hubu.common.DataVersion;
 import edu.hubu.common.utils.UtilAll;
+import edu.hubu.remoting.netty.exception.RemotingCommandException;
 import edu.hubu.remoting.netty.exception.RemotingConnectException;
 import edu.hubu.remoting.netty.exception.RemotingSendRequestException;
 import edu.hubu.remoting.netty.exception.RemotingTimeoutException;
@@ -177,7 +178,7 @@ public class BrokerOutAPI {
     }
 
     public RegisterBrokerResult registerBroker(String address, boolean oneway, long timeoutMillis, RegisterBrokerRequestHeader requestHeader, byte[] registerBody)
-            throws RemotingConnectException, RemotingSendRequestException, RemotingTimeoutException, InterruptedException, MQBrokerException {
+            throws RemotingConnectException, RemotingSendRequestException, RemotingTimeoutException, InterruptedException, MQBrokerException, RemotingCommandException {
         RemotingCommand requestCommand = RemotingCommand.createRequestCommand(RequestCode.REGISTER_BROKER, requestHeader);
         requestCommand.setBody(registerBody);
 

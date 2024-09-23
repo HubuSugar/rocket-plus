@@ -10,6 +10,7 @@ import edu.hubu.common.protocol.header.response.SendMessageResponseHeader;
 import edu.hubu.common.protocol.request.RequestCode;
 import edu.hubu.remoting.netty.RemotingCommand;
 import edu.hubu.remoting.netty.ResponseCode;
+import edu.hubu.remoting.netty.exception.RemotingCommandException;
 import edu.hubu.remoting.netty.handler.NettyRequestProcessor;
 import edu.hubu.remoting.netty.handler.ResponseInvokeCallback;
 import edu.hubu.store.PutMessageResult;
@@ -55,7 +56,7 @@ public class SendMessageProcessor extends AbstractSendMessageProcessor implement
 
 
 
-    private CompletableFuture<RemotingCommand> asyncProcessRequest(ChannelHandlerContext ctx, RemotingCommand request){
+    private CompletableFuture<RemotingCommand> asyncProcessRequest(ChannelHandlerContext ctx, RemotingCommand request) throws RemotingCommandException {
         SendMessageRequestHeader requestHeader = parseRequestHeader(request);
         final SendMessageContext traceContext = buildMsgTraceContext(ctx, requestHeader);
         switch (request.getCode()){

@@ -1,8 +1,10 @@
 package edu.hubu.broker.filter;
 
+import edu.hubu.common.filter.ExpressionType;
 import edu.hubu.common.protocol.heartbeat.SubscriptionData;
 import edu.hubu.store.ConsumeQueueExt;
 import edu.hubu.store.MessageFilter;
+import lombok.extern.slf4j.Slf4j;
 
 import java.nio.ByteBuffer;
 import java.util.Map;
@@ -12,6 +14,7 @@ import java.util.Map;
  * @date: 2023/12/9
  * @description:
  */
+@Slf4j
 public class ExpressionMessageFilter implements MessageFilter {
 
     private final SubscriptionData subscriptionData;
@@ -31,7 +34,34 @@ public class ExpressionMessageFilter implements MessageFilter {
 
     @Override
     public boolean isMatchedByConsumeQueue(Long tagsCode, ConsumeQueueExt.CqUnitExt cqUnitExt) {
-        return false;
+        if(subscriptionData == null) return true;
+        if(subscriptionData.isClassFilterMode()) return true;
+
+        if(ExpressionType.isTagType(subscriptionData.getExpressionType())){  //by tags code
+            if(tagsCode == null){
+                return true;
+            }
+
+            if(subscriptionData.getSubString().equals(SubscriptionData.SUB_ALL)){
+                return true;
+            }
+
+            return subscriptionData.getCodeSet().contains(tagsCode.intValue());
+        }else {
+            if(consumerFilterData == null || consumerFilterData.getExpression() == null ||
+                consumerFilterData.getCompiledExpression() == null || consumerFilterData.getBloomFilterData() == null){
+                return true;
+            }
+
+            if(cqUnitExt == null || consumerFilterData.isMsgInLive(cqUnitExt.getMsgStoreTime())){
+                log.debug("Pulled matched because not in live: {}, {}", consumerFilterData, cqUnitExt);
+                return true;
+            }
+
+
+        }
+
+        return true;
     }
 
     @Override

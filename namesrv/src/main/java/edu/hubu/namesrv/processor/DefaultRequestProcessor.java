@@ -14,6 +14,7 @@ import edu.hubu.namesrv.NamesrvController;
 import edu.hubu.namesrv.util.NamesvUtil;
 import edu.hubu.remoting.netty.RemotingCommand;
 import edu.hubu.remoting.netty.ResponseCode;
+import edu.hubu.remoting.netty.exception.RemotingCommandException;
 import edu.hubu.remoting.netty.handler.NettyRequestProcessor;
 import io.netty.channel.ChannelHandlerContext;
 import lombok.extern.slf4j.Slf4j;
@@ -73,7 +74,7 @@ public class DefaultRequestProcessor implements NettyRequestProcessor {
         return response;
     }
 
-    public RemotingCommand registerAllBroker(final ChannelHandlerContext ctx, final RemotingCommand request)  {
+    public RemotingCommand registerAllBroker(final ChannelHandlerContext ctx, final RemotingCommand request) throws RemotingCommandException {
 
         RemotingCommand response = RemotingCommand.createResponseCommand(RegisterBrokerResponseHeader.class);
         RegisterBrokerResponseHeader responseHeader = (RegisterBrokerResponseHeader)response.readCustomHeader();
@@ -108,7 +109,7 @@ public class DefaultRequestProcessor implements NettyRequestProcessor {
         return response;
     }
 
-    public RemotingCommand queryBrokerTopicConfig(final ChannelHandlerContext ctx, final RemotingCommand request){
+    public RemotingCommand queryBrokerTopicConfig(final ChannelHandlerContext ctx, final RemotingCommand request) throws RemotingCommandException {
         RemotingCommand response = RemotingCommand.createResponseCommand(QueryDataVersionResponseHeader.class);
         QueryDataVersionResponseHeader responseHeader = (QueryDataVersionResponseHeader) response.readCustomHeader();
         QueryDataVersionRequestHeader requestHeader = (QueryDataVersionRequestHeader) request.decodeCustomCommandHeader(QueryDataVersionRequestHeader.class);

@@ -124,16 +124,15 @@ public class MQClientAPIImpl {
         return null;
     }
 
-    private SendResult sendMessageSync(String brokerAddr, String brokerName, Message message, RemotingCommand request, long timeout) throws RemotingConnectException,
-            RemotingSendRequestException, RemotingTimeoutException, InterruptedException, MQBrokerException {
-
-        RemotingCommand response = remotingClient.invokeSync(brokerAddr, request, timeout);
+    private SendResult sendMessageSync(String brokerAddr, String brokerName, Message message, RemotingCommand request, long timeout) throws RemotingException,
+            InterruptedException, MQBrokerException {
+        RemotingCommand response = this.remotingClient.invokeSync(brokerAddr, request, timeout);
         assert response != null;
 
         return this.processResponse(brokerName, message, response);
     }
 
-    private SendResult processResponse(String brokerName, Message message, RemotingCommand response) throws MQBrokerException {
+    private SendResult processResponse(String brokerName, Message message, RemotingCommand response) throws MQBrokerException, RemotingCommandException {
         SendStatus sendStatus;
         switch (response.getCode()){
             case ResponseCode.FLUSH_DISK_TIMEOUT:
@@ -237,7 +236,7 @@ public class MQClientAPIImpl {
     }
 
 
-    private PullResult processPullResponse(final RemotingCommand response) throws MQBrokerException {
+    private PullResult processPullResponse(final RemotingCommand response) throws MQBrokerException, RemotingCommandException {
         PullStatus pullStatus;
         switch (response.getCode()){
             case ResponseCode.SUCCESS:
@@ -353,8 +352,8 @@ public class MQClientAPIImpl {
         throw new MQBrokerException(response.getCode(), response.getRemark());
     }
 
-    public long getMaxOffset(String brokerAddr, String topic, int queueId, long timeoutMillis) throws RemotingConnectException, RemotingSendRequestException,
-            RemotingTimeoutException, InterruptedException, MQBrokerException {
+    public long getMaxOffset(String brokerAddr, String topic, int queueId, long timeoutMillis) throws RemotingException,
+            InterruptedException, MQBrokerException {
         GetMaxOffsetRequestHeader requestHeader = new GetMaxOffsetRequestHeader();
         requestHeader.setTopic(topic);
         requestHeader.setQueueId(queueId);

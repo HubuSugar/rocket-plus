@@ -1,7 +1,8 @@
 package edu.hubu.namesrv;
 
-import edu.hubu.namesrv.impl.KvConfigManager;
-import edu.hubu.namesrv.impl.TopicRouteInfoManager;
+import edu.hubu.namesrv.kvconfig.KvConfigManager;
+import edu.hubu.namesrv.routeInfo.BrokerHousekeepingService;
+import edu.hubu.namesrv.routeInfo.TopicRouteInfoManager;
 import edu.hubu.namesrv.processor.DefaultRequestProcessor;
 import edu.hubu.remoting.netty.NettyRemotingServer;
 import edu.hubu.remoting.netty.NettyServerConfig;
@@ -24,12 +25,14 @@ public class NamesrvController {
     private final KvConfigManager kvConfigManager;
     private NettyRemotingServer nettyRemotingServer;
     private ExecutorService remotingExecutor;
+    private final BrokerHousekeepingService brokerHousekeepingService;
 
 
     public NamesrvController(NamesrvConfig namesrvConfig, NettyServerConfig nettyServerConfig) {
         this.nettyServerConfig = nettyServerConfig;
         this.namesrvConfig = namesrvConfig;
         this.topicRouteInfoManager = new TopicRouteInfoManager();
+        this.brokerHousekeepingService = new BrokerHousekeepingService(this);
         this.kvConfigManager = new KvConfigManager();
     }
 
@@ -41,7 +44,7 @@ public class NamesrvController {
                 return new Thread(r, String.format("namesrvExecutorThread_%d", threadIndex.getAndIncrement()));
             }
         });
-        this.nettyRemotingServer = new NettyRemotingServer(nettyServerConfig);
+        this.nettyRemotingServer = new NettyRemotingServer(nettyServerConfig, this.brokerHousekeepingService);
         this.registerDefaultProcessor();
     }
 

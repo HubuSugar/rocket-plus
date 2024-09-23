@@ -1,4 +1,4 @@
-package edu.hubu.namesrv.impl;
+package edu.hubu.namesrv.kvconfig;
 
 /**
  * @author: sugar

@@ -1,9 +1,6 @@
 package edu.hubu.broker.starter;
 
-import edu.hubu.broker.client.ConsumerIdsChangeListener;
-import edu.hubu.broker.client.ConsumerManager;
-import edu.hubu.broker.client.DefaultConsumerIdsChangeListener;
-import edu.hubu.broker.client.ProducerManager;
+import edu.hubu.broker.client.*;
 import edu.hubu.broker.client.rebalance.RebalanceLockManager;
 import edu.hubu.broker.filter.ConsumerFilterManager;
 import edu.hubu.broker.filtersrv.FilterServerManager;
@@ -50,7 +47,7 @@ public class BrokerController {
     private final BlockingQueue<Runnable> sendMessageThreadQueue;
     private final BlockingQueue<Runnable> pullMessageThreadQueue;
     private final BlockingQueue<Runnable> heartbeatThreadQueue;
-    private ExecutorService sendMessageThreadExecutor;
+    private ExecutorService sendMessageExecutor;
     private ExecutorService pullMessageExecutor;
     private ExecutorService consumerManagerExecutor;
     private ExecutorService adminBrokerExecutor;
@@ -71,11 +68,10 @@ public class BrokerController {
     private final ConsumerOffsetManager consumerOffsetManager;
     private final ConsumerManager consumerManager;
     private final ConsumerFilterManager consumerFilterManager;
+    private final ProducerManager producerManager;
+    private final ClientHousekeepingService clientHousekeepingService;
 
     private final ConsumerIdsChangeListener consumerIdsChangeListener;
-
-    private final ProducerManager producerManager;
-
 
     private final ScheduledExecutorService scheduledExecutorService = Executors.newSingleThreadScheduledExecutor(new ThreadFactory() {
         @Override
@@ -113,6 +109,7 @@ public class BrokerController {
         this.consumerFilterManager = new ConsumerFilterManager(this);
 
         this.producerManager = new ProducerManager();
+        this.clientHousekeepingService = new ClientHousekeepingService(this);
 
         this.pullMessageProcessor = new PullMessageProcessor(this);
     }
@@ -133,8 +130,8 @@ public class BrokerController {
         result = result && this.messageStore.load();
 
         if(result){
-            this.nettyRemotingServer = new NettyRemotingServer(this.nettyServerConfig);
-            this.sendMessageThreadExecutor = new ThreadPoolExecutor(
+            this.nettyRemotingServer = new NettyRemotingServer(this.nettyServerConfig, this.clientHousekeepingService);
+            this.sendMessageExecutor = new ThreadPoolExecutor(
                     this.brokerConfig.getSendMessageThreadNums(),
                     this.brokerConfig.getSendMessageThreadNums(),
                     1000 * 60,
@@ -211,6 +208,10 @@ public class BrokerController {
             this.brokerOutAPI.start();
         }
 
+        if(this.clientHousekeepingService != null){
+            this.clientHousekeepingService.start();
+        }
+
         //定时向nameSrv注册broker信息
         this.scheduledExecutorService.scheduleAtFixedRate(() -> {
             BrokerController.this.registerAllBroker(true, false, brokerConfig.isForceRegister());
@@ -220,7 +221,7 @@ public class BrokerController {
 
     public void registerProcessor() {
         SendMessageProcessor sendMessageProcessor = new SendMessageProcessor(this);
-        this.nettyRemotingServer.registerProcessor(RequestCode.SEND_MESSAGE, sendMessageProcessor, this.sendMessageThreadExecutor);
+        this.nettyRemotingServer.registerProcessor(RequestCode.SEND_MESSAGE, sendMessageProcessor, this.sendMessageExecutor);
 
         //拉取消息pullMessageProcessor
         this.nettyRemotingServer.registerProcessor(RequestCode.PULL_MESSAGE, this.pullMessageProcessor, this.pullMessageExecutor);
@@ -357,5 +358,13 @@ public class BrokerController {
 
     public PullMessageProcessor getPullMessageProcessor() {
         return pullMessageProcessor;
+    }
+
+    public ExecutorService getPullMessageExecutor() {
+        return pullMessageExecutor;
+    }
+
+    public void setPullMessageExecutor(ExecutorService pullMessageExecutor) {
+        this.pullMessageExecutor = pullMessageExecutor;
     }
 }
