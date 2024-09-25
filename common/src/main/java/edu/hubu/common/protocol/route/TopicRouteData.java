@@ -64,4 +64,14 @@ public class TopicRouteData extends RemotingSerialize {
     public void setFilterServerTable(HashMap<String, List<String>> filterServerTable) {
         this.filterServerTable = filterServerTable;
     }
+
+    @Override
+    public String toString() {
+        return "TopicRouteData{" +
+                "orderTopicConf='" + orderTopicConf + '\'' +
+                ", queueData=" + queueData +
+                ", brokerData=" + brokerData +
+                ", filterServerTable=" + filterServerTable +
+                '}';
+    }
 }

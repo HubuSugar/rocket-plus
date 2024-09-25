@@ -1,10 +1,13 @@
 package edu.hubu.common.protocol.route;
 
+import lombok.EqualsAndHashCode;
+
 /**
  * @author: sugar
  * @date: 2023/6/2
  * @description:
  */
+@EqualsAndHashCode
 public class QueueData implements Comparable<QueueData>{
     private String brokerName;
     private int readQueueNums;
@@ -50,6 +53,17 @@ public class QueueData implements Comparable<QueueData>{
 
     public void setTopicSynFlag(int topicSynFlag) {
         this.topicSynFlag = topicSynFlag;
+    }
+
+    @Override
+    public String toString() {
+        return "QueueData{" +
+                "brokerName='" + brokerName + '\'' +
+                ", readQueueNums=" + readQueueNums +
+                ", writeQueueNums=" + writeQueueNums +
+                ", perm=" + perm +
+                ", topicSynFlag=" + topicSynFlag +
+                '}';
     }
 
     @Override

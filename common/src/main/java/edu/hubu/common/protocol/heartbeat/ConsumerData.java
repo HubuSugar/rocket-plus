@@ -65,4 +65,16 @@ public class ConsumerData {
     public void setUnitMode(boolean unitMode) {
         this.unitMode = unitMode;
     }
+
+    @Override
+    public String toString() {
+        return "ConsumerData{" +
+                "groupName='" + groupName + '\'' +
+                ", consumerType=" + consumerType +
+                ", messageModel=" + messageModel +
+                ", consumeFromWhere=" + consumeFromWhere +
+                ", subscriptionData=" + subscriptionData +
+                ", unitMode=" + unitMode +
+                '}';
+    }
 }

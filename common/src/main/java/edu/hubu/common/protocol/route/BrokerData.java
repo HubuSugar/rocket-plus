@@ -1,6 +1,7 @@
 package edu.hubu.common.protocol.route;
 
 import edu.hubu.common.utils.MixAll;
+import lombok.EqualsAndHashCode;
 
 import java.util.*;
 
@@ -9,6 +10,7 @@ import java.util.*;
  * @date: 2023/6/2
  * @description:
  */
+@EqualsAndHashCode
 public class BrokerData implements Comparable<BrokerData>{
     private String cluster;
     private String brokerName;
@@ -51,6 +53,18 @@ public class BrokerData implements Comparable<BrokerData>{
     public BrokerData setBrokerAddrTable(HashMap<Long, String> brokerAddrTable) {
         this.brokerAddrTable = brokerAddrTable;
         return this;
+    }
+
+
+
+    @Override
+    public String toString() {
+        return "BrokerData{" +
+                "cluster='" + cluster + '\'' +
+                ", brokerName='" + brokerName + '\'' +
+                ", brokerAddrTable=" + brokerAddrTable +
+                ", random=" + random +
+                '}';
     }
 
     @Override

@@ -516,7 +516,7 @@ public class DefaultLitePullConsumerImpl implements MQConsumerInner{
                         case FOUND:
                             final Object lockObj = DefaultLitePullConsumerImpl.this.messageQueueLock.fetchLockObject(messageQueue);
                             synchronized (lockObj){
-                                if(pullResult.getMsgFoundList() != null && !pullResult.getMsgFoundList().isEmpty() && DefaultLitePullConsumerImpl.this.assignedMessageQueue.getSeekOffset(messageQueue) != -1){
+                                if(pullResult.getMsgFoundList() != null && !pullResult.getMsgFoundList().isEmpty() && DefaultLitePullConsumerImpl.this.assignedMessageQueue.getSeekOffset(messageQueue) == -1){
                                     processQueue.putMessage(pullResult.getMsgFoundList());
                                     submitConsumeRequest(new ConsumeRequest(pullResult.getMsgFoundList(), messageQueue, processQueue));
                                 }

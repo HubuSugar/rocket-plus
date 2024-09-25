@@ -461,7 +461,7 @@ public class MQClientInstance {
             try{
                 return this.mqClientAPI.getConsumerIdListByGroup(brokerAddr, consumerGroup, 3000);
             }catch (Exception e){
-                log.warn("find consumer id list failed", e);
+                log.warn("getConsumerIdListByGroup exception, " + brokerAddr + " " + consumerGroup, e);
             }
         }
         return null;
