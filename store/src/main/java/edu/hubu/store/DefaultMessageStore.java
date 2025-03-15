@@ -148,7 +148,7 @@ public class DefaultMessageStore implements MessageStore {
                 log.info("last over, and the max phy offset = {}", this.getMaxPhyOffset());
             }
         }catch (Exception e){
-            log.error("");
+            log.error("加载messageStore出现异常", e);
             result = false;
         }
         return result;
